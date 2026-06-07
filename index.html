@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrated Way Apu Dam O&M Command Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            transition: background-color 0.3s, color 0.3s; 
+            font-size: 18px;
+        }
+        .font-tech { font-family: 'Orbitron', sans-serif; }
+        .mono-font { font-family: 'JetBrains Mono', monospace; }
+        
+        .theme-dark {
+            --bg-main: #020813;
+            --bg-card: rgba(15, 23, 42, 0.9);
+            --bg-header: rgba(15, 23, 42, 0.85);
+            --border-color: rgba(6, 182, 212, 0.4);
+            --text-main: #f8fafc;
+            --text-muted: #cbd5e1;
+            --panel-inner: rgba(15, 23, 42, 0.6);
+            --accent-cyan: #22d3ee;
+            --accent-emerald: #34d399;
+            --accent-teal: #2dd4bf;
+            --accent-amber: #fbbf24;
+            --accent-purple: #c084fc;
+            --accent-red: #ef4444;
+            --accent-blue: #60a5fa;
+            --accent-orange: #fb923c;
+            --accent-yellow: #facc15;
+            --accent-lime: #a3e635;
+        }
+        .theme-light {
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-header: #f1f5f9;
+            --border-color: rgba(15, 23, 42, 0.3);
+            --text-main: #0f172a;
+            --text-muted: #334155;
+            --panel-inner: #f1f5f9;
+            --accent-cyan: #0891b2;
+            --accent-emerald: #059669;
+            --accent-teal: #0d9488;
+            --accent-amber: #d97706;
+            --accent-purple: #9333ea;
+            --accent-red: #dc2626;
+            --accent-blue: #2563eb;
+            --accent-orange: #ea580c;
+            --accent-yellow: #ca8a04;
+            --accent-lime: #65a30d;
+        }
+
+        .glow-border {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--border-color);
+        }
+        .glow-border:hover {
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.3);
+            border: 1px solid rgba(6, 182, 212, 0.6);
+        }
+        .quiz-card { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .quiz-card:hover { transform: translateY(-5px); }
+        
+        [title] { cursor: help; }
+
+        .flip-container {
+            perspective: 1000px;
+        }
+        .flip-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .flip-front, .flip-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            top: 0;
+            left: 0;
+            transition: transform 0.8s cubic-bezier(0.4, 0.2, 0.2, 1);
+        }
+        .flip-front {
+            transform: rotateY(0deg);
+            z-index: 2;
+            pointer-events: auto;
+        }
+        .flip-back {
+            transform: rotateY(180deg);
+            z-index: 1;
+            pointer-events: none;
+        }
+        .flip-container.flipped .flip-front {
+            transform: rotateY(-180deg);
+            z-index: 1;
+            pointer-events: none;
+        }
+        .flip-container.flipped .flip-back {
+            transform: rotateY(0deg);
+            z-index: 2;
+            pointer-events: auto;
+        }
+
+        /* Menu Atas Peta Layar Penuh Otomatis Sembunyi */
+        #fullscreenMapControls {
+            transform: translateY(-85%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #fullscreenMapControls:hover {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body id="appBody" class="theme-dark bg-[var(--bg-main)] text-[var(--text-main)] p-4 md:p-6 min-h-screen flex flex-col justify-between overflow-x-hidden relative">
+
+    <div id="floatingSystemTimerBadge" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-[#020813]/90 backdrop-blur-md border-2 border-cyan-500 rounded-full px-6 py-2.5 shadow-[0_0_20px_rgba(6,182,212,0.5)] flex items-center gap-4 transition-all">
+        <div class="flex items-center gap-2 text-cyan-400 font-mono font-bold tracking-wide text-sm md:text-base">
+            <i class="fa-solid fa-calendar-days text-cyan-400"></i>
+            <span id="liveDeviceDate">Minggu, 07 Jun 2026</span>
+        </div>
+        <div class="h-5 w-[2px] bg-cyan-500/40"></div>
+        <div class="flex items-center gap-2 text-cyan-400 font-mono font-bold tracking-widest text-sm md:text-base">
+            <span id="liveDeviceTime">07:41:42</span>
+            <span class="text-xs text-cyan-500/70 font-sans font-black">WITA</span>
+        </div>
+        <div class="h-5 w-[2px] bg-cyan-500/40"></div>
+        <button type="button" onclick="openAlarmControlModal()" class="text-amber-400 hover:text-amber-300 transition-colors cursor-pointer flex items-center justify-center relative" title="Atur Pengingat Waktu Pengerjaan Soal">
+            <i class="fa-solid fa-bell text-base animate-pulse"></i>
+            <span id="alarmActiveDot" class="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full hidden"></span>
+        </button>
+    </div>
+
+    <div id="floatingProgressBadge" class="fixed bottom-6 left-6 z-40 bg-[var(--bg-card)] border-2 border-sky-500 rounded-full px-5 py-3 shadow-[0_0_20px_rgba(14,165,233,0.4)] items-center gap-3 pointer-events-none hidden lg:flex" title="Indikator jumlah soal evaluasi yang telah diselesaikan">
+        <div class="relative flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        </div>
+        <span class="text-[var(--text-main)] font-mono font-black text-base tracking-widest" id="floatProgValue">0 / 80 SELESAI</span>
+    </div>
+
+    <div id="mainDashboardInterface" class="w-full flex flex-col justify-between flex-1 mt-12">
+        <header class="w-full bg-[var(--bg-header)] backdrop-blur-md p-5 rounded-2xl border-2 border-[var(--accent-cyan)] flex flex-col xl:flex-row justify-between items-center gap-4 mb-6 transition-colors">
+            <div class="flex items-center gap-4">
+                <div class="p-3 bg-[var(--panel-inner)] rounded-xl border border-[var(--border-color)]" title="Ikon Sistem Analitik Bendungan">
+                    <i class="fa-solid fa-dam text-[var(--accent-cyan)] text-3xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-tech text-2xl md:text-4xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-indigo-500 drop-shadow-md" title="Sistem Penilaian Terpadu Bendungan Way Apu">
+                        INTEGRATED DAM ANALYTICS & ASSESSMENT SYSTEM
+                    </h1>
+                    <p class="text-sm font-mono text-[var(--text-muted)] mt-1 tracking-widest font-bold uppercase flex items-center gap-2">
+                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span> 
+                        Way Apu Dam O&M Smart Analytics Environment
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
+                <button type="button" onclick="resetProgress()" class="bg-rose-900/40 border-2 border-rose-500/40 text-rose-500 text-sm font-mono font-black px-4 py-2.5 rounded-xl cursor-pointer transition-all flex items-center gap-2 hover:bg-rose-500/20" title="Klik untuk menghapus semua progres pengerjaan evaluasi dan mengulang dari nol">
+                    <i class="fa-solid fa-rotate-right text-base"></i> RESET PROGRES
+                </button>
+                <button type="button" onclick="toggleSystemTheme()" class="bg-cyan-900/40 border-2 border-cyan-500/40 text-[var(--accent-cyan)] text-sm font-mono font-black px-4 py-2.5 rounded-xl cursor-pointer transition-all flex items-center gap-2 hover:bg-cyan-500/20" title="Ganti tampilan visual sistem antara Mode Gelap dan Mode Terang">
+                    <i id="themeIcon" class="fa-solid fa-sun text-base"></i> <span id="themeText">DARK MODE</span>
+                </button>
+                <button type="button" onclick="openSystemHelp()" class="bg-[var(--panel-inner)] border-2 border-[var(--accent-emerald)] text-[var(--accent-emerald)] text-sm font-mono font-black px-4 py-2.5 rounded-xl cursor-pointer transition-all flex items-center gap-2 hover:bg-[var(--bg-main)]" title="Buka panduan penggunaan sistem integrasi ini">
+                    <i class="fa-solid fa-circle-question text-base"></i> SYSTEM HELP
+                </button>
+                <button type="button" onclick="openProgrammerKredit()" class="bg-[var(--panel-inner)] border-2 border-[var(--accent-purple)] text-[var(--accent-purple)] text-sm font-mono font-black px-4 py-2.5 rounded-xl cursor-pointer transition-all flex items-center gap-2 hover:bg-[var(--bg-main)]" title="Tampilkan informasi profil pengembang aplikasi">
+                    <i class="fa-solid fa-terminal text-base"></i> KREDIT PROGRAMMER
+                </button>
+                <button type="button" onclick="openReportModal()" class="bg-gradient-to-r from-sky-600 to-indigo-600 text-white text-sm font-mono font-black px-5 py-2.5 rounded-xl cursor-pointer transition-all border-2 border-sky-400/30 shadow-[0_0_15px_rgba(14,165,233,0.4)]" title="Buka panel rapor akhir untuk melihat detail skor radar dan cetak sertifikat PDF/Word">
+                    <i class="fa-solid fa-chart-pie text-base"></i> RAPOR EVALUASI
+                </button>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch w-full mb-8">
+            <section class="lg:col-span-3 bg-[var(--bg-card)] p-5 rounded-2xl border-2 border-[var(--border-color)] flex flex-col justify-between glow-border transition-colors" title="Daftar parameter teknis konstruksi dan hidrologi Bendungan Way Apu">
+                <div>
+                    <h2 class="font-tech text-base md:text-lg font-black text-[var(--accent-cyan)] border-b-2 border-[var(--border-color)] pb-2 flex items-center gap-2 uppercase tracking-wider mb-4">
+                        <i class="fa-solid fa-gears"></i> DATA TEKNIS BENDUNGAN
+                    </h2>
+                    <div class="space-y-2.5 text-sm md:text-base font-mono overflow-y-auto max-h-[350px] pr-2">
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Luas DAS Way Apu:</span><span class="font-bold text-[var(--text-main)] text-right">451,67 km²</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Curah Hujan Rata-rata:</span><span class="font-bold text-[var(--accent-cyan)] text-right">2.113,00 mm/thn</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Debit Base Flow:</span><span class="font-bold text-[var(--text-main)] text-right">4,10 m³/det</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Debit Ketersediaan Rata²:</span><span class="font-bold text-[var(--accent-emerald)] text-right">37,10 m³/det/thn</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Debit Andalan 50% / 80%:</span><span class="font-bold text-[var(--text-main)] text-right">36,73 / 22,89 m³/det</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Debit Andalan 90% / 95%:</span><span class="font-bold text-[var(--text-main)] text-right">17,45 / 15,20 m³/det</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Debit Banjir Q2 / Q20:</span><span class="font-bold text-[var(--text-main)] text-right">622,00 / 1.582,50 m³/det</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Debit Banjir Q25 / Q100:</span><span class="font-bold text-[var(--accent-amber)] text-right">1.697,50 / 2.423,70 m³/det</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Debit Banjir Q1000 / PMF:</span><span class="font-bold text-[var(--accent-red)] text-right">3.666,30 / 5.940,20 m³/det</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Puncak Bendungan:</span><span class="font-bold text-[var(--text-main)] text-right">EL. 101,00 m</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Ambang Pelimpah Samping:</span><span class="font-bold text-[var(--text-main)] text-right">EL. 96,50 m</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Ambang Pelimpah Berpintu:</span><span class="font-bold text-[var(--text-main)] text-right">EL. 85,00 m</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text(--accent-purple) shrink-0">Volume Tampungan Mati:</span><span class="font-bold text-[var(--accent-purple)] text-right">13,96 x 10⁶ m³</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Muka Air Minimum (LWL):</span><span class="font-bold text-[var(--text-main)] text-right">LWL 79,75 m</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Genangan Normal (NWL):</span><span class="font-bold text-[var(--accent-blue)] text-right">NWL 96,50 m</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Volume Tampungan NWL:</span><span class="font-bold text-[var(--text-main)] text-right">41,756 x 10⁶ m³</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Volume Tampungan Efektif:</span><span class="font-bold text-[var(--accent-emerald)] text-right">27,80 x 10⁶ m³</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Luas Genangan NWL:</span><span class="font-bold text-[var(--text-main)] text-right">235,10 Ha</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Genangan Maks (PMF):</span><span class="font-bold text-[var(--accent-red)] text-right">FWL 99,40 m</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Vol. Tampungan Maks (PMF):</span><span class="font-bold text-[var(--text-main)] text-right">49,01 x 10⁶ m³</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Luas Genangan PMF:</span><span class="font-bold text-[var(--text-main)] text-right">265,476 Ha</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">El. MA Banjir Q100th / Q1000th:</span><span class="font-bold text-[var(--text-main)] text-right">EL. 97,372 / HWL 96,80 m</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Elevasi MOL:</span><span class="font-bold text-[var(--accent-orange)] text-right">MOL 85,00 m</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Tipe Bendungan Utama:</span><span class="font-bold text-[var(--text-main)] text-right">Urugan Random Batu (Inti Tegak)</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Tinggi Bendungan:</span><span class="font-bold text-[var(--accent-cyan)] text-right">69,00 m (Dr Dasar EL.32)</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Panjang / Lebar Puncak:</span><span class="font-bold text-[var(--text-main)] text-right">592,50 m / 12,00 m</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Volume Bendungan Total:</span><span class="font-bold text-[var(--text-main)] text-right">3.294.495,00 m³</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Tipe Pelimpah:</span><span class="font-bold text-[var(--text-main)] text-right">Kombinasi (Samping + Berpintu)</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Pintu Pelimpah:</span><span class="font-bold text-[var(--text-main)] text-right">Radial 4 Buah (7x12 m)</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">Suplai Irigasi / Air Baku:</span><span class="font-bold text-[var(--accent-blue)] text-right">10.562,00 Ha / 0,55 m³/det</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">PLTM / Potensi PLTS:</span><span class="font-bold text-[var(--accent-yellow)] text-right">4 x 2 MW / 574 MW</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-6 flex flex-col gap-3 relative z-10" title="Monitoring Spasial Interaktif dengan Efek Flip">
+                <div class="bg-[var(--bg-card)] p-3 rounded-2xl border-2 border-[var(--border-color)] glow-border flex flex-col sm:flex-row justify-between items-center gap-3">
+                     <h2 class="font-tech text-base md:text-lg font-black text-[var(--accent-cyan)] flex items-center gap-2 uppercase tracking-wider">
+                         <i class="fa-solid fa-satellite"></i> MONITORING SPASIAL
+                     </h2>
+                     <div class="flex flex-wrap items-center gap-2 relative z-20">
+                         <button onclick="enterMapFullScreenMode()" id="btnMapFullScreen" class="px-2.5 py-1.5 rounded bg-indigo-700 hover:bg-indigo-600 text-white font-mono font-black text-xs transition-all shadow-md flex items-center gap-1">
+                             <i class="fa-solid fa-expand"></i> PETA LAYAR PENUH
+                         </button>
+                         <div class="flex rounded-lg bg-[var(--panel-inner)] p-0.5 border border-[var(--border-color)] text-xs font-mono font-black">
+                             <button onclick="toggleMapWeatherFlip('map')" id="btnViewMap" class="px-3 py-1.5 rounded bg-cyan-600 text-white transition-all shadow-md">PETA GIS</button>
+                             <button onclick="toggleMapWeatherFlip('weather')" id="btnViewWeather" class="px-3 py-1.5 rounded text-[var(--text-muted)] transition-all">RADAR CUACA</button>
+                         </div>
+                     </div>
+                </div>
+
+                <div class="flip-container flex-1 w-full min-h-[350px] lg:min-h-[400px]" id="mapWeatherFlipper">
+                     <div class="flip-inner w-full h-full">
+                          <div class="flip-front bg-[var(--bg-card)] p-4 rounded-2xl border-2 border-[var(--border-color)] glow-border flex flex-col">
+                               <div class="flex justify-between items-center mb-2">
+                                   <span class="font-mono text-xs sm:text-sm font-bold text-[var(--text-muted)]">Peta Interaktif Bendungan</span>
+                                   <div class="flex rounded-lg bg-[var(--panel-inner)] p-0.5 border border-[var(--border-color)] text-[10px] font-mono font-black">
+                                       <button onclick="switchBaseMapLayer('street')" id="mapBtn-street" class="px-2 py-1 rounded text-[var(--text-muted)] transition-all">STREET</button>
+                                       <button onclick="switchBaseMapLayer('satellite')" id="mapBtn-satellite" class="px-2 py-1 rounded bg-cyan-600 text-white transition-all">SATELIT</button>
+                                       <button onclick="switchBaseMapLayer('terrain')" id="mapBtn-terrain" class="px-2 py-1 rounded text-[var(--text-muted)] transition-all">3D TOPO</button>
+                                   </div>
+                               </div>
+                               <div id="mapContainer" class="w-full bg-[var(--panel-inner)] rounded-xl border border-[var(--border-color)] flex-1 z-10"></div>
+                          </div>
+
+                          <div class="flip-back bg-[var(--bg-card)] p-4 rounded-2xl border-2 border-[var(--border-color)] glow-border flex flex-col">
+                               <div class="mb-2">
+                                   <span class="font-mono text-xs sm:text-sm font-bold text-[var(--text-muted)] flex items-center gap-2"><i class="fa-solid fa-cloud-bolt text-[var(--accent-amber)]"></i> Radar Cuaca Satelit Real-time</span>
+                                </div>
+                               <div class="w-full rounded-xl overflow-hidden border border-[var(--border-color)] relative z-10 bg-[var(--panel-inner)] flex-1">
+                                   <div class="absolute top-4 left-4 z-20 pointer-events-none">
+                                       <div class="bg-[var(--bg-card)]/90 backdrop-blur-md border-2 border-[var(--accent-amber)] p-2.5 rounded-lg shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                                           <div class="font-tech text-xs sm:text-sm font-black text-[var(--accent-amber)] tracking-wider flex items-center gap-2 mb-1">
+                                               <span class="flex h-2.5 w-2.5 relative">
+                                                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                                   <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                                               </span>
+                                               BENDUNGAN WAY APU
+                                           </div>
+                                           <div class="font-mono text-[10px] sm:text-xs text-[var(--text-main)] font-bold drop-shadow-md">
+                                               S: 3°33'14.49" &nbsp;|&nbsp; E: 126°50'23.76"
+                                           </div>
+                                       </div>
+                                   </div>
+                                   <iframe id="dashboardWeatherIframe" width="100%" height="100%" src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=°C&metricWind=km/h&zoom=10&overlay=rain&product=ecmwf&level=surface&lat=-3.554025&lon=126.839933&detailLat=-3.554025&detailLon=126.839933&marker=true" frameborder="0"></iframe>
+                               </div>
+                          </div>
+                     </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-3 bg-[var(--bg-card)] p-5 rounded-2xl border-2 border-[var(--border-color)] flex flex-col justify-between gap-3 glow-border transition-colors" title="Grafik real-time jaring laba-laba menunjukkan distribusi tingkat penguasaan materi pada tiap kategori">
+                <h2 class="font-tech text-base md:text-lg font-black text-[var(--accent-cyan)] border-b-2 border-[var(--border-color)] pb-2 flex items-center gap-2 uppercase tracking-wider">
+                    <i class="fa-solid fa-chart-pie"></i> LIVE RADAR KOMPETENSI
+                </h2>
+                <div class="w-full h-[180px] relative flex items-center justify-center bg-[var(--panel-inner)] rounded-xl p-1 border border-[var(--border-color)]">
+                    <canvas id="liveRadarChart" class="w-full h-full"></canvas>
+                </div>
+                <div class="space-y-3 mt-2">
+                    <div class="px-3 py-2 bg-[var(--panel-inner)] border border-[var(--border-color)] rounded-xl flex justify-between items-center font-mono">
+                        <span class="text-sm text-[var(--text-muted)] uppercase font-bold" title="Total Soal yang sudah diselesaikan dari seluruh Modul">Progres Kerja:</span>
+                        <span id="liveProgressTxt" class="text-base font-black text-[var(--text-main)]">0 / 80</span>
+                    </div>
+                    <div id="liveBadgeContainer" class="p-3 rounded-xl text-center border font-tech text-sm tracking-wider font-bold bg-[var(--panel-inner)] border-[var(--border-color)] text-[var(--text-muted)] uppercase" title="Status Jenjang Kualifikasi Anda berdasarkan Akurasi Jawaban">
+                        Belum Ada Data Evaluasi
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <div class="w-full text-base font-tech text-[var(--accent-cyan)] font-bold tracking-widest uppercase mb-3"><i class="fa-solid fa-graduation-cap mr-2"></i> MODUL 80 CORE COMPETENCY EVALUASI GEOTEKNIK & BENDUNGAN</div>
+        
+        <div class="w-full bg-[var(--bg-card)] border-2 border-[var(--border-color)] p-5 rounded-2xl shadow-xl mb-8 transition-colors flex flex-col lg:flex-row gap-6 relative">
+            
+            <aside class="w-full lg:w-72 shrink-0 space-y-4 lg:sticky lg:top-6 lg:self-start z-20">
+                <div class="bg-[var(--panel-inner)] p-4 rounded-xl border border-[var(--border-color)] shadow-lg" title="Pilih spesifik modul pengerjaan yang diinginkan">
+                    <h3 class="text-sm font-black font-mono uppercase tracking-wider text-[var(--accent-cyan)] mb-3 border-b border-[var(--border-color)] pb-2">
+                        <i class="fa-solid fa-folder-tree mr-1.5"></i> Navigasi Modul
+                    </h3>
+                    <nav class="space-y-2 font-mono text-base" id="categoryNav">
+                        <button onclick="filterSystemCategory('all')" id="btn-cat-all" class="w-full text-left px-3 py-2.5 rounded-lg font-bold bg-sky-500 text-white flex items-center justify-between transition-colors cursor-pointer">
+                            <span>Semua Topik</span> <span class="bg-black/20 px-2 py-0.5 rounded font-black text-sm">80</span>
+                        </button>
+                        <button onclick="filterSystemCategory('stabilitas-bendungan')" id="btn-cat-stabilitas-bendungan" class="w-full text-left px-3 py-2.5 rounded-lg font-bold text-[var(--text-muted)] hover:bg-[var(--border-color)] flex items-center justify-between transition-colors cursor-pointer">
+                            <span>Stabilitas Bendungan</span> <span id="prog-stabilitas-bendungan" class="bg-[var(--bg-main)] text-sm px-2 py-0.5 rounded">0/10</span>
+                        </button>
+                        <button onclick="filterSystemCategory('mekanika-tanah')" id="btn-cat-mekanika-tanah" class="w-full text-left px-3 py-2.5 rounded-lg font-bold text-[var(--text-muted)] hover:bg-[var(--border-color)] flex items-center justify-between transition-colors cursor-pointer">
+                            <span>Mekanika Tanah</span> <span id="prog-mekanika-tanah" class="bg-[var(--bg-main)] text-sm px-2 py-0.5 rounded">0/10</span>
+                        </button>
+                        <button onclick="filterSystemCategory('software-geoteknik')" id="btn-cat-software-geoteknik" class="w-full text-left px-3 py-2.5 rounded-lg font-bold text-[var(--text-muted)] hover:bg-[var(--border-color)] flex items-center justify-between transition-colors cursor-pointer">
+                            <span>Software Geoteknik</span> <span id="prog-software-geoteknik" class="bg-[var(--bg-main)] text-sm px-2 py-0.5 rounded">0/10</span>
+                        </button>
+                        <button onclick="filterSystemCategory('hidrologi')" id="btn-cat-hidrologi" class="w-full text-left px-3 py-2.5 rounded-lg font-bold text-[var(--text-muted)] hover:bg-[var(--border-color)] flex items-center justify-between transition-colors cursor-pointer">
+                            <span>Hidrologi Hujan-Debit</span> <span id="prog-hidrologi" class="bg-[var(--bg-main)] text-sm px-2 py-0.5 rounded">0/10</span>
+                        </button>
+                        <button onclick="filterSystemCategory('operasi')" id="btn-cat-operasi" class="w-full text-left px-3 py-2.5 rounded-lg font-bold text-[var(--text-muted)] hover:bg-[var(--border-color)] flex items-center justify-between transition-colors cursor-pointer">
+                            <span>Pola Operasi Waduk</span> <span id="prog-operasi" class="bg-[var(--bg-main)] text-sm px-2 py-0.5 rounded">0/10</span>
+                        </button>
+                        <button onclick="filterSystemCategory('ews')" id="btn-cat-ews" class="w-full text-left px-3 py-2.5 rounded-lg font-bold text-[var(--text-muted)] hover:bg-[var(--border-color)] flex items-center justify-between transition-colors cursor-pointer">
+                            <span>EWS Darurat Waduk</span> <span id="prog-ews" class="bg-[var(--bg-main)] text-sm px-2 py-0.5 rounded">0/10</span>
+                        </button>
+                        <button onclick="filterSystemCategory('geologi')" id="btn-cat-geologi" class="w-full text-left px-3 py-2.5 rounded-lg font-bold text-[var(--text-muted)] hover:bg-[var(--border-color)] flex items-center justify-between transition-colors cursor-pointer">
+                            <span>Geologi & Grouting</span> <span id="prog-geologi" class="bg-[var(--bg-main)] text-sm px-2 py-0.5 rounded">0/10</span>
+                        </button>
+                        <button onclick="filterSystemCategory('instrumen')" id="btn-cat-instrumen" class="w-full text-left px-3 py-2.5 rounded-lg font-bold text-[var(--text-muted)] hover:bg-[var(--border-color)] flex items-center justify-between transition-colors cursor-pointer">
+                            <span>Instrumen Geoteknik</span> <span id="prog-instrumen" class="bg-[var(--bg-main)] text-sm px-2 py-0.5 rounded">0/10</span>
+                        </button>
+                    </nav>
+                </div>
+            </aside>
+
+            <div class="flex-1 space-y-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[var(--panel-inner)] px-5 py-3 rounded-xl border border-[var(--border-color)] gap-3">
+                    <span class="text-sm font-black font-mono uppercase tracking-wider text-[var(--accent-cyan)]" id="currentCategoryTitle">MENAMPILKAN SEMUA TOPIK (80 SOAL)</span>
+                    <div class="relative w-full sm:w-72" title="Ketik kata kunci untuk mencari pertanyaan spesifik">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--text-muted)]"><i class="fa-solid fa-magnifying-glass text-base"></i></span>
+                        <input type="text" id="searchInput" onkeyup="filterSystemCategory(currentCategory)" placeholder="Cari pertanyaan kompetensi..." class="pl-10 pr-4 py-2.5 bg-[var(--bg-main)] border-2 border-[var(--border-color)] rounded-xl text-base font-mono text-[var(--text-main)] focus:outline-none focus:border-sky-500 w-full font-bold transition-colors">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="quizContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="gisFullScreenWrapper" class="hidden fixed inset-0 z-[100] bg-slate-950 w-screen h-screen">
+        <div id="fullscreenMapControls" class="absolute top-0 inset-x-0 z-[1000] p-4 bg-slate-900/95 backdrop-blur-md border-b-2 border-cyan-500/80 shadow-[0_10px_30px_rgba(0,0,0,0.8)] flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-compass-drafting text-cyan-400 text-2xl animate-pulse"></i>
+                <span class="font-tech text-sm md:text-base font-black text-white tracking-widest uppercase" id="fsEnvironmentTitle">WAY APU GIS FULL SCREEN ENVIRONMENT</span>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex rounded-lg bg-slate-950 p-1 border border-indigo-500/50 text-xs font-mono font-black mr-2">
+                    <button onclick="switchFullScreenViewMode('map')" id="fsViewBtn-map" class="px-3 py-1.5 rounded bg-indigo-600 text-white transition-all shadow-md">PETA GIS</button>
+                    <button onclick="switchFullScreenViewMode('weather')" id="fsViewBtn-weather" class="px-3 py-1.5 rounded text-slate-400 transition-all">RADAR CUACA</button>
+                </div>
+
+                <div id="fsBasemapControlsGroup" class="flex rounded-lg bg-slate-950 p-1 border border-cyan-500/40 text-xs font-mono font-black">
+                    <button onclick="switchBaseMapLayer('street')" id="fsMapBtn-street" class="px-3 py-1.5 rounded text-slate-400 transition-all">STREET</button>
+                    <button onclick="switchBaseMapLayer('satellite')" id="fsMapBtn-satellite" class="px-3 py-1.5 rounded bg-cyan-600 text-white transition-all">SATELIT</button>
+                    <button onclick="switchBaseMapLayer('terrain')" id="fsMapBtn-terrain" class="px-3 py-1.5 rounded text-slate-400 transition-all">3D TOPO</button>
+                </div>
+                
+                <button onclick="exitMapFullScreenMode()" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-mono font-black text-xs rounded-lg transition-all shadow-md flex items-center gap-1.5 border border-rose-400/30">
+                    <i class="fa-solid fa-rectangle-xmark text-sm"></i> EXIT INTERFACE PETA
+                </button>
+            </div>
+            <div class="absolute bottom-[-16px] left-1/2 transform -translate-x-1/2 bg-cyan-500 text-slate-950 font-mono font-bold text-[9px] px-3 py-0.5 rounded-b-md shadow-md tracking-widest cursor-default pointer-events-none">
+                <i class="fa-solid fa-angles-down"></i> SENTUH ATAS UNTUK KONTROL MAP
+            </div>
+        </div>
+        
+        <div id="fullScreenMapContainer" class="w-full h-full z-10"></div>
+
+        <div id="fullScreenWeatherContainer" class="w-full h-full z-10 hidden bg-slate-950">
+            <iframe id="fullscreenWeatherIframe" width="100%" height="100%" src="" frameborder="0"></iframe>
+        </div>
+    </div>
+
+    <div id="alarmControlModal" class="hidden fixed inset-0 z-[120] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[var(--bg-card)] border-2 border-amber-500 rounded-2xl max-w-sm w-full p-6 text-[var(--text-main)] shadow-2xl font-mono">
+            <div class="flex justify-between items-center border-b border-[var(--border-color)] pb-3 mb-4">
+                <h3 class="font-tech text-base md:text-lg font-black text-amber-400 flex items-center gap-2 uppercase"><i class="fa-solid fa-clock-rotate-left"></i> SET TIMER SOAL</h3>
+                <button onclick="closeAlarmControlModal()" class="text-[var(--text-muted)] hover:text-rose-500 text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-[var(--text-muted)] mb-2 uppercase">Pilih Durasi Waktu (Menit):</label>
+                    <select id="alarmTargetMinutes" class="w-full px-4 py-3 bg-[var(--panel-inner)] border-2 border-[var(--border-color)] rounded-xl text-[var(--text-main)] text-sm font-bold focus:outline-none focus:border-amber-500">
+                        <option value="5">5 Menit (Uji Kilat)</option>
+                        <option value="15">15 Menit</option>
+                        <option value="30" selected>30 Menit (Standar)</option>
+                        <option value="60">60 Menit</option>
+                        <option value="120">120 Menit</option>
+                    </select>
+                </div>
+                <div id="alarmCountdownDisplay" class="hidden p-3 bg-amber-950/20 border border-amber-500/40 rounded-xl text-center text-amber-400 font-bold tracking-widest text-lg">
+                    SISA WAKTU: --:--
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button id="btnStartAlarm" onclick="activateSystemAlarm()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-slate-950 font-black py-3 rounded-xl transition-all uppercase text-xs tracking-wider">SET ALARM</button>
+                    <button id="btnCancelAlarm" onclick="clearSystemAlarm()" class="flex-1 bg-rose-950/40 border border-rose-500/50 text-rose-500 font-black py-3 rounded-xl transition-all uppercase text-xs tracking-wider hidden">BATALKAN</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed bottom-6 right-6 z-[110] flex flex-col items-end pointer-events-none">
+        <button onclick="toggleSystemChat()" class="pointer-events-auto bg-cyan-700 hover:bg-cyan-600 text-white w-14 h-14 rounded-full shadow-[0_10px_30px_rgba(6,182,212,0.5)] border-2 border-[var(--border-color)] flex items-center justify-center cursor-pointer transition-all hover:scale-110 relative" title="Buka Asisten Virtual Geoteknik AI">
+            <i id="chatToggleIcon" class="fa-solid fa-robot text-xl"></i>
+            <span id="chatNotifBadge" class="hidden absolute top-0 right-0 flex h-3.5 w-3.5">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500"></span>
+            </span>
+        </button>
+
+        <div id="systemChatBox" class="pointer-events-auto hidden w-[360px] sm:w-[450px] bg-[var(--bg-card)] border-2 border-[var(--accent-cyan)] rounded-2xl flex flex-col h-[520px] shadow-2xl overflow-hidden font-mono text-base text-[var(--text-main)] mt-3">
+            <div class="bg-[var(--panel-inner)] px-4 py-3 border-b border-[var(--border-color)] flex justify-between items-center text-[var(--accent-cyan)] font-black">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-microchip"></i>
+                    <span>HYDRAULIC & GEOTECH AI</span>
+                </div>
+                <button onclick="toggleSystemChat()" class="text-[var(--text-muted)] hover:text-[var(--accent-red)] p-1" title="Tutup Chat"><i class="fa-solid fa-minus text-lg"></i></button>
+            </div>
+            <div id="chatMessagesBox" class="flex-1 p-4 overflow-y-auto space-y-4 bg-[var(--bg-main)]">
+                <div class="bg-[var(--bg-card)] p-4 rounded-xl border border border-[var(--border-color)] text-[var(--text-main)] text-sm md:text-base leading-relaxed font-sans font-medium shadow-sm">
+                    <span class="text-[var(--accent-cyan)] font-black block mb-2 font-mono uppercase text-xs"><i class="fa-solid fa-terminal mr-1"></i>System Initializer:</span>
+                    Halo <strong id="systemUserName" class="text-emerald-400">Pengguna Sistem</strong>. Saya asisten AI penelusuran hidrologi dan mekanika batuan. Peta lokasi GIS, data teknis, and radar kualifikasi kompetensi Anda terintegrasi langsung di sistem utama.
+                </div>
+            </div>
+            <div class="p-3 bg-[var(--bg-card)] border-t border-[var(--border-color)] flex gap-2">
+                <input type="text" id="chatInputField" onkeydown="if(event.key==='Enter') executeChatInquiry()" placeholder="Ketik pertanyaan geoteknik..." class="flex-1 px-4 py-3 bg-[var(--panel-inner)] border-2 border-[var(--border-color)] rounded-xl text-[var(--text-main)] text-sm placeholder-[var(--text-muted)] focus:outline-none focus:border-cyan-500 font-bold" title="Kirim pertanyaan instruksi teknis kepada AI">
+                <button onclick="executeChatInquiry()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-5 rounded-xl font-black flex items-center justify-center" title="Kirim"><i class="fa-solid fa-paper-plane text-base"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="helpSystemModal" class="hidden fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[var(--bg-card)] border-2 border-[var(--accent-emerald)] rounded-2xl max-w-2xl w-full p-6 lg:p-8 text-[var(--text-main)] shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b-2 border-[var(--border-color)] pb-3 mb-5">
+                <h3 class="font-tech text-xl font-black text-[var(--accent-emerald)] flex items-center gap-2"><i class="fa-solid fa-circle-question"></i> PANDUAN SISTEM INTEGRASI</h3>
+                <button onclick="closeSystemHelp()" class="text-[var(--text-muted)] hover:text-rose-500 text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4 font-sans leading-relaxed text-base font-medium text-[var(--text-main)]">
+                <p class="bg-[var(--panel-inner)] p-5 rounded-xl border border-[var(--border-color)]">
+                    <strong class="text-[var(--accent-cyan)] font-mono block mb-2">1. DATA TEKNIS BENDUNGAN</strong>
+                    Menampilkan manifestasi struktural internal bendungan Way Apu Maluku secara detail, mulai dari ketinggian as hingga kubikasi volume hulu.
+                </p>
+                <p class="bg-[var(--panel-inner)] p-5 rounded-xl border border-[var(--border-color)]">
+                    <strong class="text-[var(--accent-purple)] font-mono block mb-2">2. PETA LOKASI & INTERFACE LAYAR PENUH</strong>
+                    Digerakkan oleh Map API untuk peninjauan koordinat spasial waduk secara presisi. Mode **Peta Layar Penuh** mendukung perpindahan instan lapisan basemap (Street, Satelit, Topo 3D) serta pemantauan **Radar Cuaca Satelit** real-time dengan menu atas pintar (*hover auto-hide*).
+                </p>
+                <p class="bg-[var(--panel-inner)] p-5 rounded-xl border border-[var(--border-color)]">
+                    <strong class="text-[var(--accent-amber)] font-mono block mb-2">3. LIVE RADAR EVALUASI</strong>
+                    Setiap jawaban yang Anda kunci pada sistem modul kompetensi di bawah akan langsung mengubah jaring grafik laba-laba dan tingkat kualifikasi keahlian Anda di panel kanan atas.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div id="programmerKreditModal" class="hidden fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[var(--bg-card)] border-2 border-[var(--accent-purple)] rounded-3xl max-w-sm w-full p-8 text-center shadow-2xl relative">
+            <button onclick="closeProgrammerKredit()" class="absolute top-5 right-5 text-[var(--text-muted)] hover:text-[var(--accent-red)] text-2xl"><i class="fa-solid fa-xmark"></i></button>
+            <div class="h-24 w-24 bg-gradient-to-tr from-fuchsia-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg text-white">
+                <i class="fa-solid fa-user-gear text-5xl"></i>
+            </div>
+            <h3 class="text-2xl font-tech text-[var(--accent-purple)] font-black tracking-wide uppercase">Creator Profile</h3>
+            <div class="my-5 border-t border-[var(--border-color)] pt-4 text-left space-y-4 font-mono text-sm text-[var(--text-main)]">
+                <div class="p-4 bg-[var(--panel-inner)] rounded-xl border border-[var(--border-color)]">
+                    <span class="block text-xs text-[var(--text-muted)] font-bold mb-1">ENGINEER / DEV PLATFORM</span>
+                    <a href="https://www.facebook.com/m.hartadi" target="_blank" class="text-[var(--accent-cyan)] font-black hover:underline flex items-center gap-1 text-base">Mohamad Hartadi <i class="fa-brands fa-facebook text-sm"></i></a>
+                </div>
+                <div class="p-4 bg-[var(--panel-inner)] rounded-xl border border-[var(--border-color)]">
+                    <span class="block text-xs text-[var(--text-muted)] font-bold mb-1">WHATSAPP CONTACT</span>
+                    <a href="https://wa.me/6282231036047" target="_blank" class="text-[var(--accent-emerald)] font-black hover:underline text-base">0822 3103 6047</a>
+                </div>
+                <div class="p-4 bg-[var(--panel-inner)] rounded-xl border border-[var(--border-color)]">
+                    <span class="block text-xs text-[var(--text-muted)] font-bold mb-1">OFFICIAL HUB</span>
+                    <a href="https://newbieonline7.blogspot.com/" target="_blank" class="text-[var(--accent-purple)] font-black hover:underline break-all text-base">newbieonline7.blogspot.com</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="quizModal" class="hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-[var(--bg-card)] border-2 border-[var(--border-color)] rounded-2xl max-w-3xl w-full flex flex-col overflow-hidden shadow-2xl">
+            <div id="quizModalHeader" class="px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[var(--panel-inner)] border-b border-[var(--border-color)] gap-3">
+                <h3 id="modalQuizTitle" class="font-mono font-black text-base tracking-wider uppercase text-[var(--accent-cyan)]">Uji Materi</h3>
+                <div class="flex items-center gap-3">
+                    <span id="liveModalProgress" class="text-xs font-mono font-bold text-emerald-400 bg-emerald-900/30 px-3 py-1.5 rounded-full border border-emerald-500/50">Progres: 0 / 80</span>
+                    <button onclick="closeQuizModal()" class="text-[var(--text-muted)] hover:text-[var(--accent-red)] text-3xl p-1" title="Tutup Modal Kuis"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div class="p-6 md:p-8 overflow-y-auto max-h-[80vh] space-y-6">
+                <div id="modalQuestionText" class="text-xl md:text-2xl font-bold text-[var(--text-main)] leading-relaxed tracking-wide">Memuat Pertanyaan...</div>
+                <div id="dynamicOptions" class="flex flex-col gap-4 font-mono text-base md:text-lg"></div>
+                
+                <div id="quizActionContainer" class="pt-5 border-t-2 border-[var(--border-color)] hidden">
+                    <button onclick="evaluateSelectedOption()" id="btnSubmitAnswer" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-mono font-black tracking-widest py-4 rounded-xl transition-all shadow-md uppercase text-base" title="Klik ini untuk mengunci jawaban akhir">
+                        Kunci Jawaban Pemilihan <i class="fa-solid fa-shield-check ml-1.5"></i>
+                    </button>
+                </div>
+                
+                <div id="quizResultBox" class="hidden space-y-5">
+                    <div class="bg-[var(--panel-inner)] p-5 rounded-xl border border-[var(--border-color)] text-center">
+                        <div id="quizStatusOutput" class="text-2xl font-mono font-black tracking-wide"></div>
+                    </div>
+                    <div id="inlineExplanationBox" class="p-6 bg-sky-900/10 border border-[var(--accent-blue)] rounded-xl text-base md:text-lg text-[var(--text-main)] leading-relaxed space-y-4 font-medium font-sans"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="reportModal" class="hidden fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-[var(--bg-card)] border-2 border-[var(--accent-cyan)] rounded-2xl max-w-5xl w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl text-[var(--text-main)]">
+            <div class="bg-[var(--panel-inner)] px-6 py-5 border-b border-[var(--border-color)] flex justify-between items-center">
+                <h3 class="font-tech text-[var(--accent-cyan)] font-black tracking-wider text-base md:text-lg"><i class="fa-solid fa-chart-radar mr-2"></i>RAPOR REKAPITULASI ACCURACY KOMPETENSI</h3>
+                <button onclick="closeReportModal()" class="text-[var(--text-muted)] hover:text-[var(--accent-red)] text-2xl" title="Tutup Rapor"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 flex flex-col lg:flex-row gap-6">
+                <div class="w-full lg:w-[45%] bg-[var(--panel-inner)] p-5 rounded-xl border border-[var(--border-color)] flex items-center justify-center max-h-[360px] relative">
+                    <canvas id="radarChart" class="w-full h-full"></canvas>
+                </div>
+                <div class="w-full lg:w-[55%] flex flex-col space-y-5">
+                    <div id="matrixScoreGrid" class="grid grid-cols-2 gap-4 font-mono text-sm md:text-base"></div>
+                    <div class="bg-[var(--panel-inner)] p-6 rounded-xl border border-[var(--border-color)] overflow-y-auto flex-1 text-base leading-relaxed">
+                        <h4 class="text-[var(--accent-cyan)] font-black font-mono text-sm border-b border-[var(--border-color)] pb-3 mb-4 uppercase tracking-wider"><i class="fa-solid fa-microchip mr-2"></i>Diagnosis Formulasi AI</h4>
+                        <div id="reportDiagnosis" class="text-[var(--text-main)] font-medium mb-3"></div>
+                        <div id="reportAdvice" class="text-[var(--text-muted)] space-y-2 text-sm">Belum ada data sampel pengerjaan soal.</div>
+                        <div class="mt-6 pt-5 border-t border-[var(--border-color)] space-y-3 font-mono">
+                            <button onclick="transmitReportToWA()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl transition-all uppercase text-sm flex items-center justify-center gap-2" title="Kirim status ke kontak programmer via Whatsapp">
+                                <i class="fa-brands fa-whatsapp text-xl"></i> Transmit Rapor Kinerja Ke WhatsApp
+                            </button>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <button onclick="triggerPDFCompilation()" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-black py-4 rounded-xl transition-all uppercase text-sm flex items-center justify-center gap-2" title="Simpan hasil evaluasi sebagai Dokumen PDF ukuran A4 (Nomor Otomatis)">
+                                    <i class="fa-solid fa-file-pdf text-xl"></i> Ekspor PDF
+                                </button>
+                                <button onclick="triggerWordCompilation()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all uppercase text-sm flex items-center justify-center gap-2" title="Simpan hasil evaluasi sebagai Dokumen Word (DOC) format A4 Rapi (Nomor Otomatis)">
+                                    <i class="fa-solid fa-file-word text-xl"></i> Ekspor Word
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hidden" id="pdfMasterWrapper">
+        <div id="pdfExportContainer" class="w-[800px] bg-white text-black p-10 font-sans mx-auto">
+            <div class="border-b-4 border-sky-700 pb-4 mb-6 flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-black text-sky-900 font-mono tracking-wider uppercase">GEOQUIZ PERFORMANCE MATRIX REPORT</h1>
+                    <h2 class="text-xs font-bold text-gray-500 uppercase mt-0.5 tracking-wider">80 Core Competencies Analytics // Way Apu Dam Platform</h2>
+                </div>
+                <div class="text-right">
+                    <span class="bg-sky-100 border border-sky-300 text-sky-800 px-3 py-1 rounded-full font-black text-xs">OFFICIAL REPORT</span>
+                    <p class="text-[9px] font-mono text-gray-400 mt-2 font-bold" id="pdfDateStamp"></p>
+                </div>
+            </div>
+            
+            <div id="exportRankSection" class="mb-6 flex flex-col items-center bg-gray-50 p-6 rounded-xl border border-gray-200">
+                <h3 class="text-lg font-black text-slate-800 font-mono uppercase mb-2">Diagnosis Kinerja AI Real-time</h3>
+                <div id="exportRankText" class="text-2xl font-black text-sky-700 mb-4 tracking-widest uppercase"></div>
+                <img id="exportRadarChart" class="w-[400px] h-[400px] object-contain mx-auto" alt="Grafik Radar Evaluasi" />
+            </div>
+
+            <div id="pdfSummary" class="mb-6"></div>
+            <div id="pdfAnswers" class="space-y-0 text-left"></div>
+        </div>
+    </div>
+
+    <script>
+        const quizDatabase = [
+            // KATEGORI 1: STABILITAS BENDUNGAN
+            { id: "B1", title: "Rapid Drawdown Failure Mechanics", category: "stabilitas-bendungan", question: "Kondisi 'Rapid Drawdown' sangat kritis bagi kestabilan lereng hulu bendungan urugan tanah karena:", options: ["Berat jenis tanah menjadi ringan.", "Gaya penahan hidrostatik luar hilang, sementara tekanan air pori internal masih tinggi.", "Terjadi overtopping.", "Inti lempung mengalami retakan hidrolis."], correctIndex: 1, explanation: "Gaya penahan luar (air waduk) hilang mendadak, sedangkan air pori di lereng belum terdisipasi, menurunkan tegangan efektif drastis.", conclusion: "Gunakan material lulus air (rockfill) di cangkang hulu atau hitung stabilitas transient." },
+            { id: "B2", title: "Fungsi Zona Filter Hidrolis", category: "stabilitas-bendungan", question: "Fungsi utama zona filter yang diletakkan tepat di hilir inti lempung adalah:", options: ["Meningkatkan berat bendungan.", "Menahan gaya gempa.", "Mencegah migrasi partikel halus dari inti akibat aliran rembesan (piping).", "Meningkatkan kohesi bendungan."], correctIndex: 2, explanation: "Filter dirancang untuk meloloskan air namun menahan partikel lempung agar tidak hanyut ke arah hilir.", conclusion: "Kegagalan filter memicu erosi buluh internal yang berujung keruntuhan." },
+            { id: "B3", title: "FoS Batas Steady-State", category: "stabilitas-bendungan", question: "Standar Faktor Keamanan (FoS) minimum yang disyaratkan untuk lereng hilir pada kondisi Muka Air Normal (steady-state)?", options: ["FoS ≥ 1.0", "FoS ≥ 1.2", "FoS ≥ 1.5", "FoS ≥ 2.5"], correctIndex: 2, explanation: "Menurut pedoman SNI/USACE, FoS = 1.5 adalah syarat mutlak operasi normal jangka panjang.", conclusion: "Jika FoS < 1.5, perkuat stabilitas dengan melandaichen lereng." },
+            { id: "B4", title: "Sistem Toe Drain Efektif", category: "stabilitas-bendungan", question: "Sistem drainase kaki (Toe Drain) dibangun dengan tujuan:", options: ["Menurunkan garis freatik agar tidak menembus permukaan lereng hilir.", "Meningkatkan tekanan air pori pondasi.", "Menahan rembesan dari hulu.", "Memperindah struktur."], correctIndex: 0, explanation: "Toe drain memaksa garis freatik turun, menjaga lereng hilir tetap kering and terhindar dari kelongsoran lokal.", conclusion: "Desain material filter pada toe drain sangat kritis." },
+            { id: "B5", title: "Mekanisme Overtopping", category: "stabilitas-bendungan", question: "Keruntuhan bendungan urugan tanah akibat air melimpas melewati mercu bendungan disebut:", options: ["Sliding failure", "Piping", "Liquefaction", "Overtopping"], correctIndex: 3, explanation: "Aliran air akan langsung menggerus material tanah lunak di mercu dan meruntuhkan bendungan seketika.", conclusion: "Kapasitas pelimpah (spillway) harus mampu melepas debit PMF." },
+            { id: "B6", title: "Hydraulic Fracturing Inti Lempung", category: "stabilitas-bendungan", question: "Retakan hidrolis pada inti lempung bendungan sering terjadi akibat fenomena:", options: ["Arching effect (deformasi diferensial) antara inti lunak and cangkang kaku.", "Kelebihan curah hujan.", "Tanah terlalu padat.", "Gempa tektonik kecil."], correctIndex: 0, explanation: "Inti lempung 'menggantung' pada cangkang batu kaku, mengurangi tegangan vertikal di inti, memudahkan tekanan air merobek tanah.", conclusion: "Pilih material inti dengan plastisitas yang mampu menyerap deformasi." },
+            { id: "B7", title: "Pemodelan Pseudo-Statis Seismik", category: "stabilitas-bendungan", question: "Dalam metode Limit Equilibrium Pseudo-Statis, beban gempa direpresentasikan oleh:", options: ["Time-history percepatan", "Koefisien seismik horizontal (kh) dan vertikal (kv)", "Spektrum respons respon", "Kecepatan geser gelombang"], correctIndex: 1, explanation: "Menyederhanakan beban gempa dinamis menjadi gaya inersia konstan menggunakan koefisien kh dan kv.", conclusion: "Gunakan PLAXIS Dinamis untuk analisis rambatan gelombang riil." },
+            { id: "B8", title: "Proteksi Rip-Rap Hulu", category: "stabilitas-bendungan", question: "Pemasangan Rip-Rap (susunan batu besar) pada permukaan lereng hulu bertujuan untuk:", options: ["Meningkatkan permeabilitas.", "Mencegah gerusan tanah akibat aksi gelombang permukaan waduk.", "Menurunkan freatik.", "Menambah gaya penahan gempa."], correctIndex: 1, explanation: "Batu besar (Rip-rap) memecah energi gelombang air waduk yang diakibatkan oleh angin.", conclusion: "Dimensi rip-rap dihitung berdasarkan panjang rambatan angin (fetch)." },
+            { id: "B9", title: "Kondisi Akhir Konstruksi (End of Construction)", category: "stabilitas-bendungan", question: "Kondisi 'Akhir Konstruksi' sering kritis bagi lereng karena:", options: ["Waduk langsung penuh.", "Batu cangkang retak.", "Tekanan air pori ekses (undrained) dari pemadatan inti lempung belum berdisipasi.", "Beban gempa tertinggi terjadi."], correctIndex: 2, explanation: "Pemadatan alat berat menimbulkan tekanan pori tinggi di inti lempung yang butuh waktu tahunan untuk keluar.", conclusion: "Gunakan parameter kuat geser Undrained (Su) di GeoStudio untuk skenario ini." },
+            { id: "B10", title: "Exit Gradient Hidrolik", category: "stabilitas-bendungan", question: "Erosi buluh (piping) di hilir terjadi jika gradien hidrolik keluar (exit gradient) melampaui:", options: ["Permeabilitas", "Gradien hidrolik kritis (icr)", "Angka pori", "Tegangan in-situ"], correctIndex: 1, explanation: "Saat gaya aliran air ke atas (upward flow) mengalahkan berat jenis tanah, terjadilah 'sand boiling'.", conclusion: "Pancang sheet pile atau pasang relief well untuk menurunkan exit gradient." },
+
+            // KATEGORI 2: MEKANIKA TANAH
+            { id: "T1", title: "Prinsip Tegangan Efektif Terzaghi", category: "mekanika-tanah", question: "Rumus Tegangan Efektif (σ') menurut Karl Terzaghi adalah:", options: ["σ + u", "σ - u", "u - σ", "c + σ tan(φ)"], correctIndex: 1, explanation: "Tegangan efektif adalah sisa tekanan fisik antar burir setelah tegangan total dikurangi tekanan air pori (u).", conclusion: "Semua analisis longsor murni dipicu oleh berkurangnya tegangan efektif." },
+            { id: "T2", title: "Kriteria Keruntuhan Mohr-Coulomb", category: "mekanika-tanah", question: "Kriteria keruntuhan Mohr-Coulomb untuk kuat geser tanah (τ) dinyatakan sebagai:", options: ["τ = σ' / c", "τ = c + σ' × tan(φ)", "τ = c × σ'", "τ = σ' + u"], correctIndex: 1, explanation: "Kuat geser adalah gabungan dari sifat tarik (kohesi) dan sifat gesek (sudut geser) yang dikalikan tegangan efektif.", conclusion: "Pasir murni tidak memiliki kohesi (c=0), kuat gesernya murni dari friksi." },
+            { id: "T3", title: "Konsolidasi Primer Berkelanjutan", category: "mekanika-tanah", question: "Penurunan tanah lempung jenuh seiring waktu akibat pembebanan yang memeras air keluar dari pori disebut:", options: ["Kompaksi", "Konsolidasi", "Likuifaksi", "Rayapan"], correctIndex: 1, explanation: "Beban luar pelan-pelan dialihkan dari air (tekanan pori turun) ke kerangka tanah (tegangan efektif naik).", conclusion: "Proses ini memakan waktu lama pada lempung, bisa diproses cepat dengan PVD." },
+            { id: "T4", title: "Formulasi Hukum Darcy", category: "mekanika-tanah", question: "Hukum Darcy untuk debit aliran rembesan (q) melalui tanah didefinisikan sebagai:", options: ["q = k × i × A", "q = k / A", "q = i × A / k", "q = k × v"], correctIndex: 0, explanation: "Debit (q) sebanding dengan koefisien permeabilitas (k), gradien hidrolik (i), and luas penampang (A).", conclusion: "Rumus mutlak untuk menghitung kebocoran debit air bendungan harian." },
+            { id: "T5", title: "Uji Pemadatan Standard Proctor", category: "mekanika-tanah", question: "Uji Standard Proctor di laboratorium bertujuan untuk mencari:", options: ["Kohesi batas", "Kadar air optimum (OMC) dan Kepadatan kering maksimum (MDD)", "Indeks plastisitas", "Angka rembesan"], correctIndex: 1, explanation: "Air berfungsi sebagai pelumas saat pemadatan. Terlalu kering atau terlalu basah membuat tanah sulit dipadatkan.", conclusion: "MDD menjadi acuan 95% atau 100% kepadatan lapangan (sand cone test)." },
+            { id: "T6", title: "Analisis Batas Atterberg", category: "mekanika-tanah", question: "Indeks Plastisitas (PI) pada tanah lempung dihitung dari selisih antara:", options: ["Batas Susut dan Batas Cair", "Batas Cair (LL) dan Batas Plastis (PL)", "Kadar Air dan Batas Plastis", "Volume basah dan kering"], correctIndex: 1, explanation: "PI = LL - PL. Lebar rentang ini menentukan seberapa 'plastis' (bisa dibentuk tanpa hancur) suatu lempung.", conclusion: "Lempung dengan PI sangat tinggi (ekspansif) berbahaya untuk pondasi jalan." },
+            { id: "T7", title: "Uji Triaksial CU (Consolidated Undrained)", category: "mekanika-tanah", question: "Uji Triaksial CU (Consolidated Undrained) dilakukan dengan cara:", options: ["Tanah dikonsolidasi dahulu (katup terbuka), lalu digeser tanpa membiarkan air keluar (katup tertutup).", "Tanah langsung digeser tanpa konsolidasi.", "Katup air selalu terbuka dari awal.", "Tanah direndam asam."], correctIndex: 0, explanation: "Mensimulasikan beban bangunan yang selesai berdiri (consolidated), lalu diguncang beban dinamis cepat (undrained).", conclusion: "Dengan pengukuran pori, tes ini bisa menghasilkan parameter efektif (c', φ')." },
+            { id: "T8", title: "Kerentanan Fenomena Likuifaksi", category: "mekanika-tanah", question: "Likuifaksi (pencairan tanah) paling rentan terjadi pada jenis endapan:", options: ["Lempung padat (stiff clay)", "Pasir seragam lepas yang jenuh air (loose saturated sand)", "Batuan sedimen", "Kerikil padat kasar"], correctIndex: 1, explanation: "Getaran gempa membuat pasir lepas memadat cepat, menaikkan tekanan air pori tinggi hingga tegangan efektif lenyap (tanah jadi cair).", conclusion: "Cek profil N-SPT < 15 pada zona berair dangkal." },
+            { id: "T9", title: "Tekanan Tanah Lateral Aktif", category: "mekanika-tanah", question: "Tekanan tanah lateral aktif (Ka) Rankine bekerja pada retaining wall ketika dinding:", options: ["Terdorong maju menekan tanah.", "Kaku diam.", "Melentur/bergeser menjauhi massa tanah di belakangnya.", "Amblas vertikal."], correctIndex: 2, explanation: "Tanah meregang hingga batas gesernya (kondisi aktif minimum).", conclusion: "Tulangan dinding penahan didesain untuk menahan momen guling dari Ka ini." },
+            { id: "T10", title: "Mekanisme General Shear Failure", category: "mekanika-tanah", question: "Keruntuhan geser umum (General Shear Failure) pada pondasi dangkal ditandai dengan:", options: ["Amblas murni tanpa gundukan.", "Terbentuk bidang longsor melengkung jelas hingga mengangkat permukaan tanah di sekitar pondasi.", "Pondasi miring sedikit.", "Pecahnya selimut beton."], correctIndex: 1, explanation: "Beban menembus batas bearing capacity tanah kaku, pushing tanah di samping fondasi naik ke atas.", conclusion: "Daya dukung dihitung menggunakan faktor Nc, Nq, Ngamma Terzaghi." },
+
+            // KATEGORI 3: SOFTWARE GEOTEKNIK
+            { id: "S1", title: "Formulasi Rigorous Morgenstern-Price", category: "software-geoteknik", question: "Dalam SLOPE/W, mengapa metode Morgenstern-Price disebut metode Rigorous (Ketat)?", options: ["Hanya hitung gaya 3D.", "Memenuhi keseimbangan gaya vertikal saja.", "Memenuhi keseimbangan gaya (horizontal/vertikal) maupun keseimbangan momen pada setiap irisan.", "Proses komputasi lebih lama."], correctIndex: 2, explanation: "Metode ini mengasumsikan fungsi gaya antar-irisan yang proporsional sehingga persamaannya tertutup sempurna.", conclusion: "Gunakan metode ini sebagai acuan standar pelaporan FOS." },
+            { id: "S2", title: "Fungsi Volumetric Water Content (VWC)", category: "software-geoteknik", question: "Selain kurva permeabilitas, fungsi material apa yang wajib diinput di SEEP/W untuk analisis rembesan Transient?", options: ["Modulus Young (E)", "Volumetric Water Content (VWC) Function", "Poisson Ratio", "Kohesi"], correctIndex: 1, explanation: "VWC (SWCC) mendefinisikan seberapa banyak air yang disimpan atau dilepas tanah saat tekanannya (suction) berubah di area tak jenuh.", conclusion: "Krusial untuk memodelkan garis freatik saat waduk surut (drawdown)." },
+            { id: "S3", title: "Metode SSR (Shear Strength Reduction)", category: "software-geoteknik", question: "Dalam PLAXIS, Faktor Keamanan dihitung melalui metode SSR yang merupakan singkatan dari:", options: ["Slope Sliding Rate", "Shear Strength Reduction", "Seismic Soil Resonance", "Static Strain Ratio"], correctIndex: 1, explanation: "Phi-c reduction menurunkan nilai c dan tan(φ) step-by-step secara konstan hingga jaring (mesh) tanah kolaps secara numerik.", conclusion: "Output SSR otomatis mencari bidang gelincir kritis alami (tidak perlu digambar manual)." },
+            { id: "S4", title: "Elemen Interface Struktur Kontak", category: "software-geoteknik", question: "Dalam memodelkan sheet-pile pada PLAXIS, elemen 'Interface' ditambahkan untuk:", options: ["Mensimulasikan interaksi friksi/gelincir antara struktur baja dengan tanah sekitarnya.", "Mempercepat render 3D.", "Menaikkan berat jenis elemen dinding.", "Menambah kelenturan baja."], correctIndex: 0, explanation: "Tanpa interface, elemen tanah akan menempel kaku ke dinding. Interface dengan R_inter memungkinkan terjadinya slip batas geser.", conclusion: "Selalu pasang interface pada dinding galian, tunnel, dan borepile." },
+            { id: "S5", title: "Kalkulasi Prosedur K0 Komputasi", category: "software-geoteknik", question: "Untuk profil tanah mendatar horizontal tanpa beban awal, kalkulasi tegangan awal (in-situ) terbaik di PLAXIS adalah:", options: ["K0 Procedure", "Gravity Loading", "Phi-c Reduction", "Consolidation"], correctIndex: 0, explanation: "K0 Procedure menghitung tegangan horizontal otomatis berdasarkan nilai K0 (sering = 1-sin φ).", conclusion: "Namun jika profil tanah asli sudah miring (lereng), WAJIB gunakan Gravity Loading." },
+            { id: "S6", title: "Konstitutif Model Hardening Soil (HS)", category: "software-geoteknik", question: "Kelebihan utama material Hardening Soil (HS) dibanding Mohr-Coulomb biasa di PLAXIS adalah:", options: ["Tidak butuh input c dan phi.", "Mampu memodelkan kekakuan (stiffness) tanah yang meningkat seiring bertambahnya tegangan (stress-dependent).", "Analisis lebih cepat 10x.", "Tanah diubah jadi batuan."], correctIndex: 1, explanation: "HS memisahkan modulus elastisitas E50 (geser), Eoed (tekan 1D), and Eur (unloading). Perilaku tanah galian menjadi sangat realistis.", conclusion: "Wajib digunakan untuk simulasi galian dalam (deep excavation)." },
+            { id: "S7", title: "Skenario Kondisi Undrained A", category: "software-geoteknik", question: "Opsi pemodelan material 'Undrained A' di PLAXIS membutuhkan input berupa parameter:", options: ["Parameter Efektif (c', φ') dimana software akan menghitung excess pore pressure sendiri.", "Kuat geser total (Su/Cu) dari vane shear.", "Hanya angka pori e0.", "Liquid limit murni."], correctIndex: 0, explanation: "Pada Undrained A, matriks kekakuan bulk air disisipkan, sehingga komputasi menghasilkan tekanan air pori berlebih dari c' dan φ '.", conclusion: "Gunakan Undrained B atau C jika Anda hanya punya data Su absolut." },
+            { id: "S8", title: "Optimasi Mesh Refinement Lokasi Ekstrem", category: "software-geoteknik", question: "Tujuan melakukan 'Refining Mesh' (menghaluskan elemen) di ujung pondasi tiang/dinding pada PLAXIS adalah:", options: ["Memperindah laporan cetak.", "Mempercepat komputasi server.", "Menghindari stress concentration dan menangkap regangan deformasi dengan lebih presisi.", "Menurunkan nilai SF."], correctIndex: 2, explanation: "Di area lekukan tajam, tegangan berubah drastis. Elemen besar (coarse) akan meratakan hasil, menyebabkan perhitungan miring.", conclusion: "Gunakan fitur Refine Cluster/Line di radius tegangan ekstrem." },
+            { id: "S9", title: "Kopling Konsolidasi (Coupled Consolidation)", category: "software-geoteknik", question: "Analisis 'Coupled Consolidation' di SIGMA/W/PLAXIS menyelesaikan persamaan antara:", options: ["Tegangan gempa dan termal temperatur.", "Deformasi mekanis kerangka tanah dan disipasi aliran pori air secara simultan.", "Tegangan aktif dan pasif saja.", "Aliran sungai dan angin."], correctIndex: 1, explanation: "Beban luar menekan air (mekanis), air mengalir keluar (hidrolis), volume tanah mengecil (mekanis kembali). Ini saling terhubung (coupled).", conclusion: "Wajib digunakan untuk memprediksi kurva waktu penurunan jalan tol di atas tanah lunak." },
+            { id: "S10", title: "Algoritma Slip Surface Optimization", category: "software-geoteknik", question: "Fitur 'Optimize' pada SLOPE/W setelah menemukan busur sirkular kritis bertujuan untuk:", options: ["Mencari bentuk patahan komposit non-sirkular yang lebih ekstrem dengan FoS lebih rendah.", "Menambahkan angkur secara otomatis.", "Membulatkan hasil ke bilangan bulat.", "Menghitung volume galian."], correctIndex: 0, explanation: "Tanah berlapis cenderung longsor patah mengikuti lapisan lunak, bukan bulat sempurna bak jangka.", conclusion: "Penyusuran ini seringkali menurunkan nilai FoS 5%-15%, mendekati realita longsoran riil." },
+
+            // KATEGORI 4: HIDROLOGI
+            { id: "H1", title: "Karakteristik Luas Daerah Aliran Sungai (DAS)", category: "hidrologi", question: "Dalam transformação hujan-debit, parameter 'Luas DAS' (misal 450 km²) berfungsi sebagai:", options: ["Tinggi bendungan maksimal.", "Area tangkapan air geografis (catchment) yang menerima curah hujan menuju muara sungai.", "Luas genangan irigasi.", "Panjang sungai utama."], correctIndex: 1, explanation: "DAS menampung dan mengkonversi hujan murni menjadi debit limpasan (run-off).", conclusion: "Pengukuran DAS harus presisi dengan peta topografi (DEM) terbaru." },
+            { id: "H2", title: "Faktor Koefisien Run-Off", category: "hidrologi", question: "Parameter 'Koefisien Pengaliran' (Run-off Coefficient / C) merepresentasikan...", options: ["Rasio curah hujan yang meresap sempurna ke akuifer.", "Rasio volume curah hujan yang tidak terserap dan meluncur menjadi limpasan permukaan (debit).", "Indeks evaporasi matahari.", "Derajat kekasaran sungai."], correctIndex: 1, explanation: "C = 0.6 berarti 60% hujan terkonversi menjadi air sungai, sisa 40% infiltrasi dan evaporasi.", conclusion: "Hutan lebat memiliki nilai C rendah, sementara aspal/pemukiman memiliki nilai C tinggi (mendekati 1)." },
+            { id: "H3", title: "Konservasi Massa Net Inflow", category: "hidrologi", question: "Bila Inflow banjir total 34.4 m³/s, berapa 'Net Inflow' yang mengisi waduk jika ada rilis eco-flow di dasar 1.0 m³/s?", options: ["35.4 m³/s", "34.4 m³/s", "33.4 m³/s", "1.0 m³/s"], correctIndex: 2, explanation: "Hukum konservasi massa: (Inflow) - (Outflow) = dS/dt (Perubahan Storage). 34.4 - 1.0 = 33.4 m³/s.", conclusion: "Wajib dihitung untuk simulasi kecepatan impounding yang realistis." },
+            { id: "H4", title: "Metrik Intensitas Presipitasi", category: "hidrologi", question: "Satuan standar hidrologi internasional yang digunakan untuk input intensitas Curah Hujan adalah:", options: ["Liter per jam", "Milimeter (mm) kedalaman air di permukaan datar.", "Pascal", "Knot presipitasi"], correctIndex: 1, explanation: "Hujan 1 mm pada luasan 1 m² sama persis dengan volume 1 liter air.", conclusion: "Angka mm ini akan dikalikan dengan luas DAS (km²) untuk mencari total meter kubik debit." },
+            { id: "H5", title: "Mekanisme Impounding Reservoir awal", category: "hidrologi", question: "Kecepatan durasi waktu 'Impounding' (penggenangan awal waduk setelah konstruksi) murni bergantung pada...", options: ["Besaran debit sungai (m³/s) akumulatif musiman yang masuk.", "Ketebalan aspal jalan inspeksi.", "Jumlah katup turbin.", "Luas genangan banjir hilir."], correctIndex: 0, explanation: "Pengisian waduk adalah permainan volume. Laju volume harian akan mengisi topografi cekungan waduk hingga batas normal.", conclusion: "Impounding wajib dijadwalkan pada awal musim penghujan (basah)." },
+            { id: "H6", title: "Puncak Debit Banjir Bandang", category: "hidrologi", question: "Jika hujan lebat terjadi merata, variabel utama pemicu lonjakan elevasi waduk mendadak (spike) adalah:", options: ["Tingginya intensitas curah hujan (mm) ekstrem dalam waktu singkat (harian/jam).", "Warna air sungai keruh.", "Suhu udara dingin.", "Kecepatan angin waduk."], correctIndex: 0, explanation: "Intensitas (I) tinggi melampaui laju infiltrasi tanah hulu, memicu debit puncak sesaat (Peak Flow).", conclusion: "Diperlukan stasiun curah hujan telemetri (ARR) untuk deteksi dini." },
+            { id: "H7", title: "Variabel Komponen Persamaan Rasional", category: "hidrologi", question: "Dalam persamaan hidrologi sederhana debit Q = C × I × A, huruf 'A' mewakili...", options: ["Aliran laminar", "Area (Luas Daerah Aliran Sungai)", "Amplitudo Hujan", "Angin hulu"], correctIndex: 1, explanation: "A = Luas DAS (km²), I = Intensitas (mm/jam), C = Koefisien run-off.", conclusion: "Pastikan penyetaraan konversi unit metrik dijaga saat kalkulasi manual." },
+            { id: "H8", title: "Analisis Pengisian Dead Storage", category: "hidrologi", question: "Jika volume Dead Storage 14 Juta m³, berapa hari waktu terisinya jika Net Inflow harian waduk stabil di angka 2 Juta m³?", options: ["14 hari", "28 hari", "7 hari", "2 hari"], correctIndex: 2, explanation: "Tampungan dibagi kecepatan: 14 Jt m³ / 2 Jt m³/hari = 7 Hari konstan.", conclusion: "Tampungan mati ini akan terus diisi hingga air mencapai pipa sadap terendah (intake)." },
+            { id: "H9", title: "Kontribusi Aliran Baseflow Alami", category: "hidrologi", question: "Mengapa debit sungai pada puncak musim kemarau menyusut namun tidak langsung nol?", options: ["Waduk bocor.", "Disuplai oleh lepasan lambat dari simpanan air tanah akuifer hulu (Baseflow).", "Mencairnya salju tropis.", "Kondensasi malam hari."], correctIndex: 1, explanation: "Tanah hutan hulu menyimpan sisa hujan layaknya spons, dan melepasnya pelan-pelan ke sungai selama berbulan-bulan.", conclusion: "Kondisi baseflow ini menjadi acuan batas terendah Rencana Operasi Waduk (Q80)." },
+            { id: "H10", title: "Dampak Deforestasi Terhadap Hidrograf", category: "hidrologi", question: "Apa dampak langsung pembabatan hutan hulu DAS terhadap grafik hidrologi limpasan?", options: ["Koefisien C mengecil, air terserap.", "Air waduk otomatis jernih.", "Koefisien C meningkat tajam, menciptakan banjir bandang ekstrem sesaat namun kemarau kering kerontang (fluktuasi ekstrem).", "Luas DAS mengecil otomatis."], correctIndex: 2, explanation: "Kehilangan kanopi dan akar spons membuat hujan 100% meluncur membawa tanah sedimen ke bendungan.", conclusion: "Erosi lahan mengancam usia guna tampungan mati waduk (sedimentasi prematur)." },
+
+            // KATEGORI 5: POLA OPERASI WADUK
+            { id: "O1", title: "Ruang Retensi Banjir (Flood Space)", category: "operasi", question: "Tujuan utama POW pada 'Periode Banjir' (Musim Hujan) adalah...", options: ["Mengisi waduk sampai tumpah.", "Mempertahankan muka air waduk tetap di bawah Normal Water Level (NWL) untuk sedia ruang potong puncak banjir.", "Membuka seluruh saluran irigasi ke sawah.", "Menahan air 100%."], correctIndex: 1, explanation: "Waduk harus dikosongkan sebagian agar ada ruang hampa (flood control space) yang siap 'menelan' volume banjir mendadak tanpa overtopping.", conclusion: "Elevasi dikontrol ketat via Pintu Spillway." },
+            { id: "O2", title: "Strategi Periode Pengisian Optimasi", category: "operasi", question: "Langkah operasional utama saat 'Periode Pengisian' di akhir musim hujan adalah...", options: ["Menutup pintu pengeluaran untuk menampung volume optimal (NWL) persiapan kemarau.", "Membuka seluruh pintu radial.", "Membuang lumpur.", "Menghancurkan katup dasar."], correctIndex: 0, explanation: "Sisa hujan terakhir harus ditangkap dan ditahan penuh untuk modal suplai berbulan-bulan ke depan.", conclusion: "Perhatikan kurva Rule Curve pengisian ideal." },
+            { id: "O3", title: "Pelepasan Aliran Konservasi (Eco-Flow)", category: "operasi", question: "Pelepasan debit air kontinu (misal 1.0 m³/s) di hilir sungai diwajibkan untuk fungsi...", options: ["Bermain arung jeram.", "Aliran Pemeliharaan (Konservasi ekologi biotik sungai di hilir bendungan).", "Tes turbin 24 jam.", "Mencuci terowongan."], correctIndex: 1, explanation: "Memutus total aliran sungai (zero flow) akan mematikan flora & fauna akuatik dan merusak lingkungan.", conclusion: "Valve ekologi harus dibuka konstan apapun musimnya." },
+            { id: "O4", title: "Inspeksi Visual Galeri bottom outlet", category: "operasi", question: "Untuk melakukan inspeksi visual keutuhan beton pada terowongan bawah (bottom outlet), prosedur POW adalah:", options: ["Tutup pintu intake utama (LOTO), kuras sisa air di terowongan, tim turun masuk dengan ventilasi.", "Lakukan saat air penuh mengalir.", "Ledakkan batu karang.", "Gunakan kapal selam mini."], correctIndex: 0, explanation: "Keselamatan inspektor mutlak. Jalur air masif harus diisolasi dari hulu dengan drop-gate/stoplog.", conclusion: "Pastikan sistem sensor Oksigen (O2) menyala dalam galeri tertutup." },
+            { id: "O5", title: "Uji Hidromekanikal Pintu Berkala", category: "operasi", question: "Dry-Test (Uji coba kering) sistem hidromekanikal pintu radial and genset secara berkala diwajibkan untuk...", options: ["Hanya saat akan turun hujan.", "Memastikan mesin tidak macet/berkarat sehingga 100% responsif saat darurat datang.", "Menghabiskan anggaran solar.", "Acara kunjungan menteri."], correctIndex: 1, explanation: "Pintu baja berbobot puluhan ton yang diam berbulan-bulan rawan macet akibat karat as engsel (trunnion).", conclusion: "Lakukan test naik-turun parsial tiap 2-4 minggu." },
+            { id: "O6", title: "Metrik Muka Air Normal (NWL)", category: "operasi", question: "Elevasi Normal Water Level (NWL) dalam panduan operasi mendefinisikan:", options: ["Dasar sungai awal.", "Elevasi air terendah yang bisa disedot pompa.", "Batas elevasi air operasi normal maksimum untuk retensi tampungan suplai (Batas Spillway).", "Puncak timbunan tanah bendungan."], correctIndex: 2, explanation: "Air di atas NWL akan otomatis limpas (spill) lewat ogee spillway secara pasif.", conclusion: "Waduk dianggap 'penuh 100% efektif' jika mencapai elevasi ini." },
+            { id: "O7", title: "Fungsi Kerangka Kerja RTOW", category: "operasi", question: "Rencana Tahunan Operasi Waduk (RTOW) berfungsi untuk...", options: ["Membagikan pupuk ke petani.", "Mengatur alokasi neraca rilis air bulanan (suplai vs inflow) berdasarkan prediksi tahun basah/kering BMKG.", "SOP penanganan teroris.", "Daftar hadir operator."], correctIndex: 1, explanation: "RTOW adalah buku panduan 'berapa meter kubik' yang boleh dibuka tiap bulan agar air tidak habis di tengah kemarau.", conclusion: "Di-update rutin via sidang komisi irigasi daerah." },
+            { id: "O8", title: "Probabilitas Keandalan Inflow Q50", category: "operasi", question: "Kurva grafik RTOW yang melabeli 'Inflow Q50' menunjukkan indikasi...", options: ["Debit banjir 50 tahunan.", "Volume lumpur 50%.", "Skenario rata-rata historis (normal) dimana probabilitas ketersediaan debit air tercapai 50%.", "Suhu air 50 Celcius."], correctIndex: 2, explanation: "Q50 = Tahun Iklim Normal. Q80 = Tahun Kemarau/El Nino (air masuk lebih sedikit).", conclusion: "Jatah irigasi saat Q80 harus dipangkas agar waduk tidak kering kerontang." },
+            { id: "O9", title: "Protokol Elevasi Kritis Ekstrem FWL", category: "operasi", question: "Sesuai SOP, saat muka air menembus elevasi kritis ekstrem (FWL), tindakan operator pada pintu radial adalah:", options: ["Menutup rapat seluruh pintu.", "Membuka seluruh pintu terbuka penuh untuk melepaskan kapasitas debit puncak dan mencegah Overtopping bendungan tanah.", "Membuka 1 pintu pelan-pelan.", "Mematikan telemetri listrik."], correctIndex: 1, explanation: "Penyelamatan struktur bendungan urugan dari luapan pelimpasan (overtopping) adalah prioritas #1 melampaui banjir di hilir.", conclusion: "Overtopping pada bendungan tanah 100% memicu jebol total (dam break)." },
+            { id: "O10", title: "Operasi Ambang Batas LWL (Low Water Level)", category: "operasi", question: "Jika muka air terus menyusut saat El Nino hingga tembus di bawah Low Water Level (LWL), maka operasi yang HARUS dilakukan:", options: ["Buka pintu irigasi lebih besar.", "Nyalakan turbin PLTA maksimal.", "Hentikan mutlak seluruh operasional intake (Irigasi & PLTA ditutup), karena tersisa hanya lumpur/tampungan mati.", "Tambahkan air laut."], correctIndex: 2, explanation: "Di bawah elevasi LWL, air sudah tidak bisa masuk gravitasi ke dalam pipa pesat/intake.", conclusion: "Memaksa menyedot air di dalam pipa pesat/intake akan merusak sudu turbin akibat sedimen pekat." },
+
+            // KATEGORI 6: EARLY WARNING SYSTEM (EWS)
+            { id: "E1", title: "Status Kedaruratan WASPADA (Kondisi 1)", category: "ews", question: "Status kedaruratan 'Kondisi I: WASPADA' ditetapkan apabila instrumentasi mendeteksi gejala...", options: ["Bendungan terbelah dua.", "Rembesan di toe drain meningkat tapi air masih tampak jernih.", "Terjadi overtopping 2 meter.", "Listrik kota mati lampu."], correctIndex: 1, explanation: "Rembesan wajar asal jernih. Jika tiba-tiba naik (jernih), ini anomali awal yang perlu observasi 24 jam.", conclusion: "Filter toe drain masih bekerja menahan partikel lempung inti." },
+            { id: "E2", title: "Erosi Internal Status SIAGA (Kondisi 2)", category: "ews", question: "Indikasi visual utama yang mengubah status 'WASPADA' memburuk menjadi 'SIAGA' adalah...", options: ["Air surut perlahan.", "Munculnya mata air rembesan (seepage) baru di kaki hilir yang membawa endapan material lumpur pekat (keruh).", "Sensor suhu air panas.", "Burung burung menjauh."], correctIndex: 1, explanation: "Rembesan keruh/berlumpur adalah bukti nyata bahwa erosi buluh internal (piping) telah menggerus lempung inti.", conclusion: "Proses 'Dam Break' telah dimulai di dalam tubuh bendungan secara progresif." },
+            { id: "E3", title: "Komando Evakuasi Lintas Instansi", category: "ews", question: "Tindakan lintas instansi paling penting yang diaktifkan saat memasuki fase 'SIAGA' (Kondisi II) adalah...", options: ["Mencetak ulang buku pedoman.", "Menutup pintu gerbang proyek.", "Memulai komando radio telemetri ke BPBD untuk evakuasi preventif masyarakat di zona Inundasi Merah hilir.", "Berdoa bersama staf."], correctIndex: 2, explanation: "Keselamatan nyawa warga hilir ada dalam hitungan jam. Evakuasi harus dilakukan sebelum bendungan amenuju runtuh.", conclusion: "Integrasi sirine EWS ke posko balai BPBD daerah harus selalu online." },
+            { id: "E4", title: "Kondisi Batas Kehancuran AWAS (Kondisi 3)", category: "ews", question: "Kondisi pamungkas 'AWAS' (Kondisi III - Gagal Bendungan) resmi dinyatakan jika terjadi...", options: ["Hujan lokal deras 2 jam.", "Pintu spillway berkarat.", "Terjadi peluapan air melewati aspal mercu/puncak (Overtopping) pada bendungan tipe urugan tanah.", "Genset cadangan mati."], correctIndex: 3, explanation: "Air pelimpasan mercu akan menggerus urugan batu hilir dalam hitungan menit, menghancurkan tubuh dam menjadi kepingan lumpur bandang besar.", conclusion: "Segera eksekusi Total Abandon / lari ke perbukitan." },
+            { id: "E5", title: "Pola Sinyal Sirine Bahaya Ekstrem", category: "ews", question: "Pola standard bunyi sirine/Toa EWS gawar banjir ketika memasuki status 'AWAS' (Pecah Bendungan) adalah:", options: ["Bunyi 1 kali selama 5 detik lalu diam.", "Bunyi pelan-pelan volume rendah.", "Bunyi nyaring secara KONTINU (terus-menerus tanpa putus) as sbyg sinyal evakuasi mutlak.", "Musik daerah lokal."], correctIndex: 2, explanation: "Suara lolongan tak terputus secara universal menandakan bahaya ekstrem real-time (bukan sekedar latihan).", conclusion: "Warga harus familiar dengan beda nada Siaga (putus-putus) and Awas (kontinu)." },
+            { id: "E6", title: "Infrastruktur Transmisi Telemetri", category: "ews", question: "Transmisi pengiriman data ketinggian muka air rawan (EWS) dari bendungan ke pusat BPBD menggunakan infrastructure:", options: ["Ojek/Kurir darat.", "Merpati pos.", "Sistem Radio Telemetri (VHF/UHF) dan Jaringan Seluler GSM (IoT).", "Internet kabel fiber optik rumah."], correctIndex: 2, explanation: "Saat bencana badai, tiang kabel FO darat sering tumbang. Radio Telemetri wireless adalah jalur tulang punggung paling tangguh.", conclusion: "Pastikan baterai / Solar Panel stasiun radio selalu prima." },
+            { id: "E7", title: "Mekanisme Pengosongan Darurat (Drawdown)", category: "ews", question: "Untuk menurunkan level muka air secepat mungkin (Pengosongan Darurat / Drawdown) demi mencegah Overtopping, fasilitas hidrolis yang dipakai:", options: ["Hanya turbin PLTA kecil.", "Kombinasi buka Pintu Pelimpah Radial 100% bersamaan dengan Katup Terrowongan Dasar (Bottom Outlet).", "Pompa air diesel proyek.", "Membobol tanggul samping."], correctIndex: 1, explanation: "Seluruh lubang jalan keluar air (atas dan bawah) harus dieksploitasi untuk mengeluarkan debit melampaui debit inflow hujan masuk.", conclusion: "Cek kurva Routing Banjir untuk simulasi Drawdown." },
+            { id: "E8", title: "Redundansi Daya Hidromekanikal", category: "ews", question: "Apa risiko utama jika sistem pintu Radial Spillway tiba-tiba kehilangan power / macet total saat terjadi banjir PMF (Probable Maximum Flood)?", options: ["Beban listrik PLTA turun.", "Waduk akan pelan-pelan surut otomatis.", "Elevasi air akan meroket tak controllably menembus puncak mercu memicu jebolnya bendungan (Overtopping).", "Tidak ada pengaruh sama sekali."], correctIndex: 2, explanation: "Pintu yang macet memblokir jalur evakuasi utama air waduk. Inflow yang beringas akan memenuhi ruang retensi seketika.", conclusion: "Inilah urgensi adanya Genset Backup 2 Lapis dan Sistem Engkol Manual Hidrolik." },
+            { id: "E9", title: "Zonasi Ruang Tampungan Mati (Dead Storage)", category: "ews", question: "Jika lumpur longsoran hulu terbawa masuk menimbun dasar waduk, zona elevasi mana yang paling pertama kali tertimbun mati?", options: ["Di atas elevasi NWL", "Elevasi Mercu Ogee", "Zona Tampungan Mati (Dead Storage) di dasar cekungan sungai awal.", "Pipa ventilasi turbin."], correctIndex: 2, explanation: "Endapan lumpur (sedimen) mengikuti gravitasi mengisi dasar ceruk waduk (El. 32.0 m hingga batas LWL).", conclusion: "Laju sedimen yang melebihi prediksi desain dapat mengubur hidup-hidup mulut pipa Intake Bottom Outlet." },
+            { id: "E10", title: "Gladi Lapangan Rencana Tindak Darurat", category: "ews", question: "Pelatihan (Gladi/Drill) peringatan dini EWS dan simulasi evakuasi lapangan mutlak dilakukan secara berkala dan diorkestrasi oleh:", options: ["Dinas Pendidikan", "Kepolisian Lalu Lintas", "Badan Penanggulangan Bencana Daerah (BPBD) bersama Operator Bendungan dan masyarakat Desa terdampak.", "Vendor IT Software"], correctIndex: 2, explanation: "Rencana Tindak Darurat (RTD / EAP) tidak akan berjalan mulus jika masyarakat hilir tidak dilatih rute lari jalur evakuasi merah.", conclusion: "Cetak ulang Peta Inundasi Banjir dan tempelkan di setiap Balai Desa hilir sungai." },
+
+            // KATEGORI 7: GEOLOGI & GROUTING
+            { id: "G1", title: "Rekayasa Curtain Grouting Fondasi", category: "geologi", question: "Pada fondasi batuan dasar bendungan, apa fungsi utama dari injeksi semburan semen 'Curtain Grouting' yang dibor sedalam puluhan meter?", options: ["Mewarnai fondasi batuan.", "Menghancurkan batu keras.", "Menyumbat/menambal celah rekahan tektonik di bawah as bendungan untuk memutus jalur rembesan air (seepage) pondasi.", "Menahan gempa lempeng."], correctIndex: 2, explanation: "Curtain grouting berfungsi membangun dinding (tirai) kedap air maya di kedalaman perut bumi langsung di bawah inti lempung bendungan.", conclusion: "Kebocoran di pondasi dalam adalah penyebab utama rembesan air tak terlihat yang menggembos debit waduk harian." },
+            { id: "G2", title: "Uji Permeabilitas Lugeon", category: "geologi", question: "Metode tes lapangan standar hidrolika injeksi bertekanan untuk mengukur tingkat kekedapan/porositas rekahan massa batuan disebut:", options: ["Uji Vane Shear", "Uji Penetrasi SPT", "Uji Tekan Bebas (UCT)", "Uji Lugeon (Water Pressure Test)"], correctIndex: 3, explanation: "Air dipompa ke lubang bor batuan dengan packer karet. Debit air yang 'hilang' diserap rekahan diukur presisi.", conclusion: "Angka Lugeon (Lu) menjadi acuan utama. Lu > 5 berarti batuan tembus air (permeable) dan wajib di-grouting." },
+            { id: "G3", title: "Ekuivalensi Satuan 1 Lugeon", category: "geologi", question: "Satuan 1 Lugeon (1 Lu) dalam uji packer batuan didefinisikan setara dengan:", options: ["1 mm penurunan tanah per tahun.", "1 Liter air yang terserap ke dalam rekahan per meter panjang bor per menit pada tekanan 10 Bar.", "1 kg semen portland.", "Kecepatan 1 meter per detik."], correctIndex: 1, explanation: "Satuan baku hidro-geologi untuk mengkuantifikasi konduktivitas hidrolik massif batuan (Setara ± 1.3 x 10^-7 m/s).", conclusion: "Target akhir setelah di-grouting, seluruh fondasi harus bernilai di bawah 2 Lu (Sangat Kedap)." },
+            { id: "G4", title: "Aplikasi Consolidation Grouting", category: "geologi", question: "Selain grouting tirai yang dalam, dilakukan pula 'Consolidation Grouting' (Grouting Konsolidasi) yang dangkal (< 10m) dengan jarak grid rapat, bertujuan untuk:", options: ["Memperkuat daya dukung mekanis & menyatukan batuan lapuk permukaan (weathered rock) agar rigid menopang berat urugan bendungan.", "Mencari sumber emas.", "Mengalirkan air bawah tanah ke sungai.", "Mendinginkan aspal puncak."], correctIndex: 0, explanation: "Zona epikrustal batuan (paling atas) biasanya pecah pecah akibat pelapukan cuaca/akar pohon. Semen akan merekatkan kembali kepingan batu layaknya lem super.", conclusion: "Selalu eksekusi consolidation grouting terlebih dahulu sebelum mengebor curtain grouping." },
+            { id: "G5", title: "Investigasi Zona Sesar Tektonik", category: "geologi", question: "Jika saat investigasi Core Drilling ditemukan zona hancuran lempung lunak (Gouge) panjang di as pondasi yang menandakan adanya Sesar/Patahan (Fault), risiko fatalnya adalah:", options: ["Ditemukan mata air panas.", "Zona tersebut menjadi jalur bebas hambatan kebocoran air raksasa dan potensi pergeseran asimetris gempa yang merobek inti bendungan.", "Batu menjadi lebih kuat.", "Tanah jadi subur."], correctIndex: 1, explanation: "Sesar tektonik adalah mimpi buruk desainer bendungan. Batuan di sekitarnya hancur (breksi) sangat permeable dan tidak stabil menahan beban.", conclusion: "Pondasi sesar harus digali habis, di-treatment dengan Concrete Plug raksasa dan injeksi semen dosis tinggi." },
+            { id: "G6", title: "Batas Tekanan Injeksi Efektif", category: "geologi", question: "Dalam pelaksanaan pompa Grouting Semen, mengapa tekanan mesin injeksi bar (Pressure) DILARANG keras dinaikkan melebihi batas tegangan izin batuan?", options: ["Karena mesin bor akan mati otomatis.", "Bisa memicu 'Hydraulic Fracturing', di mana tekanan cairan justru memecahkan/merobek paksa lapisan batuan utuh dan memperparah retakan.", "Karena semen akan menguap.", "Suhu pompa menjadi es."], correctIndex: 1, explanation: "Aturan empiris: tekanan grouting max 0.25 bar per 1 meter kedalaman. Melebihinya berarti kita sedang 'meledakkan' formasi batuan sendiri.", conclusion: "Selalu pasang manometer analog dan sensor pressure limiter elektronik pada stasiun grouting pump." },
+            { id: "G7", title: "Mix Design Suspensi Semen", category: "geologi", question: "Material campuran utama (mix design) standar yang diinjeksikan secara cair ke dalam rekahan batuan fondasi adalah:", options: ["Resin Epoxy plastik merah.", "Bentonite Lumpur murni pekat.", "Suspensi campuran air dan Semen Portland Murni (W/C Ratio variatif).", "Aspal asbuton mendidih."], correctIndex: 2, explanation: "Air membawa bubuk mikroskopis semen menyusup jauh ke lorong mikro retakan, lalu membatu menjadi sumbat beton permanen tak tembus air.", conclusion: "W/C Ratio divariasikan dari encer (3:1) hingga kental (0.8:1) bergantung lebar dimensi rekahan batu di dalam perut bumi." },
+            { id: "G8", title: "Quality Control Check Hole", category: "geologi", question: "Setelah suatu seksi grid grouting selesai di-injeksi, kontraktor wajib mengebor 'Check Hole' (Lubang Verifikasi) di tengah-tengahnya untuk tujuan:", options: ["Menaruh pipa piezometer kabel kabel listrik PLN.", "Memverifikasi efektivitas injeksi dengan melakukan uji Lugeon ulang (Post-Grouting) sebagai Bukti QC apakah batu kedap (< 2 Lugeon).", "Menyerap sisa air genangan.", "Mengebor ventilasi udara."], correctIndex: 1, explanation: "Check hole ibarat hasil 'Rontgen/MRI' dokter bedah pasca operasi. Jika Lugeon masih tinggi (bocor), grouting dianggap gagal dan WAJIB disuntik ulang (Re-grouting).", conclusion: "Tanpa approval Check Hole yang lolos mutu teknis, Penimbunan Tanah Lempung Inti (Clay Core) DILARANG dimulai." },
+            { id: "G9", title: "Struktur Beton Plinth (Grouting Cap)", category: "geologi", question: "Pada penampang melintang bendungan urugan, terdapat struktur plat beton memanjang di dasar parit as galian yang disebut 'Plinth' (Grouting Cap). Fungsinya adalah:", options: ["Lantai parkir eskavator crawler.", "Sebagai dudukan jepit mesin bor, mencegah semen bocor, sekaligus media Transisi penyambung Inti Lempung (Core) dengan Batuan Dasar.", "Tembok penahan ombak.", "Saluran irigasi pesat primer."], correctIndex: 1, explanation: "Beton plinth adalah sendi transisi paling vital. Bagian bawahnya mengekang retak batuan, bagian atasnya melekat erat mencengkeram tanah liat lempung kedap air.", conclusion: "Ikatan asimetris (Contact zone) antara tanah, beton plinth, dan batu fondasi inilah yang rentan erosi kontak (Contact Piping)." },
+            { id: "G10", title: "Metodologi Splitting Hierarki Spasi", category: "geologi", question: "Pelaksanaan bor Grouting wajib menggunakan urutan metodologi hierarki 'Split Spacing' (Pemisahan Spasi Jarak Jaring), yang bermakna:", options: ["Mengebor secara acak random sesuka operator bor lapang.", "Mengebor lubang Primer dahulu (spasi renggang), baru disisipkan lubang Sekunder di tengahnya untuk mengepung menyempitkan kebocoran air.", "Mengebor dari ujung tebing atas ke dasar sungai berurutan lurus.", "Mengebor bersamaan ratusan lubang serentak."], correctIndex: 1, explanation: "Logika mengepung (Splitting). Primer injeksi (jarak 12m) memblokir retakan makro besar. Kemudian disisipkan Sekunder (jarak 6m), Tersier (3m) memburu celah mikro yang belum tersumbat semen.", conclusion: "Jika lubang Tersier sudah tidak memakan semen (Take Semen 0 kg), maka blok fondasi tersebut telah solid kedap paripurna." },
+
+            // KATEGORI 8: INSTRUMEN GEOTEKNIK
+            { id: "I1", title: "Monitoring Deformasi Inclinometer", category: "instrumen", question: "Apa fungsi utama dari instrumen Inclinometer yang dipasang pada tubuh bendungan Way Apu?", options: ["Memantau pergerakan vertikal tanah (penurunan)", "Mengukur pergerakan horizontal tanah akibat deformasi", "Mencatat besaran gempa bumi", "Mengukur debit rembesan air"], correctIndex: 1, explanation: "Inclinometer digunakan untuk mendeteksi besaran dan arah pergerakan geser horizontal pada tanah/timbunan.", conclusion: "Sangat krusial dipasang pada area yang dicurigai berpotensi mengalami sliding/longsoran." },
+            { id: "I2", title: "Aplikasi Vibrating Wire Piezometer (VWP)", category: "instrumen", question: "Alat yang digunakan untuk memantau besarnya tekanan air pori tanah, terutama saat terjadi penambahan beban akibat pekerjaan timbunan adalah...", options: ["Vibrating Wire Piezometer (VWP)", "Strong Motion Accelerograph", "V-Notch Weir", "Observation Well"], correctIndex: 0, explanation: "VWP ditanam di kedalaman inti/pondasi untuk mendeteksi kenaikan tekanan air pori akibat beban mekanis di atasnya.", conclusion: "Jika tekanan air pori (u) meroket tajam, penimbunan harus dihentikan sementara (jeda konsolidasi)." },
+            { id: "I3", title: "Kuantitas Patok Monitor Pergerakan", category: "instrumen", question: "Berapa jumlah titik Crest Settlement (patok geser puncak) dan Surface Settlement (patok geser lereng) yang direncanakan/terpasang di Bendungan Way Apu?", options: ["10 Crest dan 69 Surface", "24 Crest dan 42 Surface", "3 Crest dan 11 Surface", "42 Crest dan 24 Surface"], correctIndex: 1, explanation: "Merujuk laporan data instrumen, Way Apu memiliki 24 patok pergerakan di puncak dan 42 patok di permukaan lereng (surface).", conclusion: "Pengukuran secara berkala menggunakan Total Station kalibrasi tinggi wajib dilakukan." },
+            { id: "I4", title: "Kalibrasi Debit V-Notch Weir", category: "instrumen", question: "Dalam pemeliharaan alat ukur rembesan (V-Notch Weir), bagaimana cara sederhana untuk melakukan kalibrasi lapangan terhadap debit yang terbaca?", options: ["Menggunakan ember bervolume diketahui dan stopwatch", "Menimbang berat air rembesan", "Menambahkan zat warna ke dalam air", "Menggunakan sensor ultrasonik otomatis"], correctIndex: 0, explanation: "Cara paling presisi di lapangan adalah menampung jatuhan air dengan ember ukur selama X detik, lalu hasilnya dikonversi ke liter/detik.", conclusion: "Jika hasil ukur manual berbeda jauh dengan rumus, nilai koefisien K pada rumus harus disesuaikan." },
+            { id: "I5", title: "Frekuensi Siklus Monitoring VWP", category: "instrumen", question: "Pembacaan instrumen Vibrating Wire Piezometer pada saat sedang dilakukan pekerjaan penimbunan (penambahan beban) idealnya dilakukan minimal...", options: ["1 kali seminggu", "1 kali setiap bulan", "2 kali setiap hari", "1 kali setahun"], correctIndex: 2, explanation: "Pada saat alat berat bekerja keras menambah tinggi urugan, tekanan pori beresiko melonjak drastis, sehingga butuh minimal 2 kali monitoring per hari.", conclusion: "Keterlambatan pembacaan VWP saat penimbunan bisa memicu keruntuhan lereng prematur." },
+            { id: "I6", title: "Orientasi Sumbu Strong Motion Accelerograph", category: "instrumen", question: "Pemasangan arah panah utara pada alat pencatat gempa (Strong Motion Accelerograph) jika difungsikan untuk memonitor perilaku bendungan harus dihadapkan ke arah mana?", options: ["Arah Utara Kompas (True North)", "Mengarah tepat tegak lurus ke tubuh bendungan", "Arah datangnya aliran sungai (Hulu)", "Arah bangunan pelimpah"], correctIndex: 1, explanation: "Panah 'Utara' pada alat diarahkan ke sumbu tubuh bendungan (cross-valley) untuk menangkap respons deformasi struktur terbesar.", conclusion: "Pemasangan SMA yang terbalik arahnya akan menghasilkan data analisa gelombang geser yang salah." },
+            { id: "I7", title: "Metode Pengukuran Dip Meter Open Standpipe", category: "instrumen", question: "Alat yang digunakan untuk mengukur elevasi muka air tanah di dalam Open Standpipe Piezometer (OSP) atau Observation Well dengan indikator bunyi (beep) adalah...", options: ["Theodolite", "Readout Unit Digital", "Water Level Indicator (Dip Meter)", "Seismograph"], correctIndex: 2, explanation: "Dip Meter adalah meteran gulung dengan sensor konduktor di ujungnya yang akan berbunyi seketika saat menyentuh permukaan air tanah.", conclusion: "Pastikan baterai sensor selalu dicek sebelum meteran diulur ke dalam lubang sumur observasi." },
+            { id: "I8", title: "Siklus Self-Test Akselerograf", category: "instrumen", question: "Pengukuran/kalibrasi 'Self Test' pada instrumen Strong Motion Accelerograph (SMA) harus dilakukan sekurang-kurangnya dalam periode waktu...", options: ["1 bulan sekali", "1 tahun sekali", "5 tahun sekali", "3 tahun sekali"], correctIndex: 1, explanation: "SMA adalah alat digital yang sensitif. Uji fungsional internal (self test) tahunan mutlak agar instrumen tidak 'mati' saat gempa besar benar-benar terjadi.", conclusion: "Jika beda amplitudo selftest melebihi 5% dari sebelumnya, alat harus dipulangkan ke pabrik untuk rekondisi." },
+            { id: "I9", title: "Rumus Empiris Debit Rembesan", category: "instrumen", question: "Rumus standar yang digunakan untuk menghitung debit rembesan (Q) pada pelat V-Notch dengan sudut 90 derajat adalah...", options: ["Q = k . i . A", "Q = 8/15 × 0.6 × (2g)^0.5 × h^(5/2)", "Q = m . c . delta T", "Q = C . I . A"], correctIndex: 1, explanation: "Formula empiris ini menggunakan parameter tinggi muka air (h) dari dasar takik V hingga permukaan air tenang di belakang pelat.", conclusion: "Pastikan 'h' diukur pada area air tenang (bukan tepat di pusaran jatuh V-notch) memakai staff gauge akurat." },
+            { id: "I10", title: "Manajemen Siklus Hidup Baterai SMA", category: "instrumen", question: "Baterai utama (main battery) pada alat pencatat gempa (Strong Motion Accelerograph) direkomendasikan untuk diganti setiap...", options: ["1 tahun", "2 tahun", "3 tahun", "5 tahun"], correctIndex: 2, explanation: "Sesuai SOP fabrikasi, main battery pada SMA diganti tiap 3 tahun dan backup battery tiap 5 tahun untuk menjamin pasokan daya 24/7.", conclusion: "Tegangan voltase battery dan charger regulator surya juga harus ditesting setiap setahun sekali (rentang 11.8 - 13.2 V)." }
+        ];
+
+        let currentCategory = "all";
+        let mapInstance = null;
+        let fsMapInstance = null;
+        let activeQuizId = null;
+        let selectedIndexTrack = -1;
+        let radarChartInstance = null;
+        let liveRadarChartInstance = null;
+        let currentMapLayerGroup = null;
+        let currentFsMapLayerGroup = null;
+        let activeMapStyle = 'satellite';
+        let fullScreenActiveViewMode = 'map'; // 'map' atau 'weather'
+        
+        // Timer & Alarm Variables
+        let systemAlarmInterval = null;
+        let systemAlarmEndTime = null;
+
+        let userProgress = {
+            'stabilitas-bendungan': { total: 10, answered: [], correctCount: 0 },
+            'mekanika-tanah': { total: 10, answered: [], correctCount: 0 },
+            'software-geoteknik': { total: 10, answered: [], correctCount: 0 },
+            'hidrologi': { total: 10, answered: [], correctCount: 0 },
+            'operasi': { total: 10, answered: [], correctCount: 0 },
+            'ews': { total: 10, answered: [], correctCount: 0 },
+            'geologi': { total: 10, answered: [], correctCount: 0 },
+            'instrumen': { total: 10, answered: [], correctCount: 0 }
+        };
+
+        const mapTileProviders = {
+            street: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            terrain: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
+        };
+
+        const exactWayApuCoordinates = [-3.554025, 126.839933];
+        const weatherEmbedUrl = "https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=°C&metricWind=km/h&zoom=10&overlay=rain&product=ecmwf&level=surface&lat=-3.554025&lon=126.839933&detailLat=-3.554025&detailLon=126.839933&marker=true";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const cache = localStorage.getItem("integratedDamProgress_WayApu");
+            if(cache) {
+                try { userProgress = JSON.parse(cache); } catch(e) { console.error("Cache error", e); }
+            }
+            
+            // AUTOMATIC DEVICE IDENTITY DETECTION
+            const userAgent = navigator.userAgent;
+            let osName = "AUTO-ID_STATION_ENG";
+            if (userAgent.indexOf("Windows NT") !== -1) osName = "SYS_WIN_NODE_X86";
+            else if (userAgent.indexOf("Mac OS X") !== -1) osName = "SYS_MAC_DARWIN_CORE";
+            else if (userAgent.indexOf("Android") !== -1) osName = "MOBILE_ANDROID_PORT";
+            else if (userAgent.indexOf("iPhone") !== -1 || userAgent.indexOf("iPad") !== -1) osName = "MOBILE_IOS_ARM";
+            else if (userAgent.indexOf("Linux") !== -1) osName = "LINUX_KERNEL_STATION";
+            document.getElementById("systemUserName").innerText = osName;
+
+            // Inisialisasi Fungsi Waktu Riil Perangkat
+            startLiveDeviceClock();
+
+            initInteractiveMap();
+            renderAssessmentCards(quizDatabase);
+            refreshProgressCounters();
+            executeLiveRadarUpdate();
+        });
+
+        /* --- LOGIKA LIVE SYSTEM TIMER --- */
+        function startLiveDeviceClock() {
+            const daysArr = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+            const monthsArr = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+            
+            function updateClock() {
+                const now = new Date();
+                
+                // Formulasi Hari dan Tanggal Berdasarkan Kalender Perangkat
+                let dayName = daysArr[now.getDay()];
+                let dateStr = String(now.getDate()).padStart(2, '0');
+                let monthName = monthsArr[now.getMonth()];
+                let yearStr = now.getFullYear();
+                
+                document.getElementById("liveDeviceDate").innerText = `${dayName}, ${dateStr} ${monthName} ${yearStr}`;
+                
+                // Formulasi Waktu Jam:Menit:Detik Berdasarkan Jam Perangkat
+                let hoursStr = String(now.getHours()).padStart(2, '0');
+                let minutesStr = String(now.getMinutes()).padStart(2, '0');
+                let secondsStr = String(now.getSeconds()).padStart(2, '0');
+                
+                document.getElementById("liveDeviceTime").innerText = `${hoursStr}:${minutesStr}:${secondsStr}`;
+                
+                // Pemeriksaan Trigger Alarm Sisa Waktu Aktif
+                if (systemAlarmEndTime) {
+                    let timeLeft = systemAlarmEndTime - now.getTime();
+                    if (timeLeft <= 0) {
+                        triggerAlarmNotification();
+                    } else {
+                        let mLeft = Math.floor(timeLeft / 60000);
+                        let sLeft = Math.floor((timeLeft % 60000) / 1000);
+                        document.getElementById("alarmCountdownDisplay").innerText = `SISA WAKTU: ${String(mLeft).padStart(2, '0')}:${String(sLeft).padStart(2, '0')}`;
+                    }
+                }
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        /* --- MANAJEMEN MODAL DAN KONTROL ALARM --- */
+        function openAlarmControlModal() {
+            document.getElementById("alarmControlModal").classList.remove("hidden");
+        }
+        
+        function closeAlarmControlModal() {
+            document.getElementById("alarmControlModal").classList.add("hidden");
+        }
+
+        function activateSystemAlarm() {
+            const selectedMins = parseInt(document.getElementById("alarmTargetMinutes").value);
+            const now = new Date();
+            systemAlarmEndTime = now.getTime() + (selectedMins * 60000);
+            
+            document.getElementById("alarmActiveDot").classList.remove("hidden");
+            document.getElementById("alarmCountdownDisplay").classList.remove("hidden");
+            document.getElementById("btnCancelAlarm").classList.remove("hidden");
+            document.getElementById("btnStartAlarm").classList.add("hidden");
+        }
+
+        function clearSystemAlarm() {
+            systemAlarmEndTime = null;
+            document.getElementById("alarmActiveDot").classList.add("hidden");
+            document.getElementById("alarmCountdownDisplay").classList.add("hidden");
+            document.getElementById("btnCancelAlarm").classList.add("hidden");
+            document.getElementById("btnStartAlarm").classList.remove("hidden");
+        }
+
+        function triggerAlarmNotification() {
+            systemAlarmEndTime = null;
+            clearSystemAlarm();
+            
+            // Eksekusi Bunyi Beep Audio Sintetis Menggunakan Web Audio API
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if(audioCtx) {
+                    for(let i = 0; i < 3; i++) {
+                        setTimeout(() => {
+                            let osc = audioCtx.createOscillator();
+                            let gain = audioCtx.createGain();
+                            osc.connect(gain);
+                            gain.connect(audioCtx.destination);
+                            osc.type = "sine";
+                            osc.frequency.value = 880; // Nada Beep Tinggi
+                            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                            osc.start();
+                            osc.stop(audioCtx.currentTime + 0.15);
+                        }, i * 300);
+                    }
+                }
+            } catch(e) { console.log("Audio API not supported"); }
+
+            alert("PENGINGAT WAKTU SISTEM: Durasi waktu pengerjaan modul evaluasi yang Anda setel telah habis!");
+        }
+
+        /* --- MODE GIS LAYAR PENUH (FULL SCREEN) ENVIRONMENT --- */
+        function enterMapFullScreenMode() {
+            document.getElementById("mainDashboardInterface").classList.add("hidden");
+            document.getElementById("gisFullScreenWrapper").classList.remove("hidden");
+
+            if(!fsMapInstance) {
+                fsMapInstance = L.map('fullScreenMapContainer', {
+                    zoomControl: false
+                }).setView(exactWayApuCoordinates, 14);
+
+                L.control.zoom({ position: 'bottomright' }).addTo(fsMapInstance);
+
+                currentFsMapLayerGroup = L.tileLayer(mapTileProviders[activeMapStyle], {
+                    attribution: 'Map Data &copy; Esri - Way Apu GIS Engine'
+                }).addTo(fsMapInstance);
+
+                const fsDamMarker = L.marker(exactWayApuCoordinates).addTo(fsMapInstance);
+                fsDamMarker.bindPopup(`
+                    <div class='font-mono text-xs text-slate-800 p-1'>
+                        <b class='text-cyan-600 block mb-1 uppercase'><i class='fa-solid fa-location-crosshairs mr-1'></i> AS BENDUNGAN WAY APU</b>
+                        <span>S: 3°33'14.49\"<br>E: 126°50'23.76\"</span>
+                    </div>
+                `);
+            }
+
+            const flipper = document.getElementById('mapWeatherFlipper');
+            const isCurrentlyWeather = flipper.classList.contains('flipped');
+            switchFullScreenViewMode(isCurrentlyWeather ? 'weather' : 'map');
+        }
+
+        function exitMapFullScreenMode() {
+            document.getElementById("gisFullScreenWrapper").classList.add("hidden");
+            document.getElementById("mainDashboardInterface").classList.remove("hidden");
+            document.getElementById("fullscreenWeatherIframe").src = "";
+
+            setTimeout(() => {
+                if(mapInstance) {
+                    mapInstance.invalidateSize();
+                    mapInstance.setView(exactWayApuCoordinates, 14);
+                }
+            }, 100);
+        }
+
+        function switchFullScreenViewMode(mode) {
+            fullScreenActiveViewMode = mode;
+            const mapContainerNode = document.getElementById("fullScreenMapContainer");
+            const weatherContainerNode = document.getElementById("fullScreenWeatherContainer");
+            const basemapControls = document.getElementById("fsBasemapControlsGroup");
+            const titleNode = document.getElementById("fsEnvironmentTitle");
+
+            const btnMap = document.getElementById("fsViewBtn-map");
+            const btnWeather = document.getElementById("fsViewBtn-weather");
+
+            btnMap.className = "px-3 py-1.5 rounded text-slate-400 transition-all";
+            btnWeather.className = "px-3 py-1.5 rounded text-slate-400 transition-all";
+
+            if (mode === 'weather') {
+                weatherContainerNode.classList.remove("hidden");
+                mapContainerNode.classList.add("hidden");
+                basemapControls.classList.add("invisible");
+                titleNode.innerText = "WAY APU WEATHER RADAR ENVIRONMENT";
+                btnWeather.className = "px-3 py-1.5 rounded bg-amber-600 text-white transition-all shadow-md";
+
+                const iframe = document.getElementById("fullscreenWeatherIframe");
+                if(!iframe.src || iframe.src !== weatherEmbedUrl) {
+                    iframe.src = weatherEmbedUrl;
+                }
+
+                const mainFlipper = document.getElementById('mapWeatherFlipper');
+                if(!mainFlipper.classList.contains('flipped')) {
+                    toggleMapWeatherFlip('weather');
+                }
+            } else {
+                mapContainerNode.classList.remove("hidden");
+                weatherContainerNode.classList.add("hidden");
+                basemapControls.classList.remove("invisible");
+                titleNode.innerText = "WAY APU GIS FULL SCREEN ENVIRONMENT";
+                btnMap.className = "px-3 py-1.5 rounded bg-indigo-600 text-white transition-all shadow-md";
+
+                const mainFlipper = document.getElementById('mapWeatherFlipper');
+                if(mainFlipper.classList.contains('flipped')) {
+                    toggleMapWeatherFlip('map');
+                }
+
+                setTimeout(() => {
+                    if(fsMapInstance) {
+                        fsMapInstance.invalidateSize();
+                    }
+                }, 50);
+            }
+            syncMapLayerStyleButtons();
+        }
+
+        function syncMapLayerStyleButtons() {
+            ['street', 'satellite', 'terrain'].forEach(type => {
+                const btnDs = document.getElementById(`mapBtn-${type}`);
+                const btnFs = document.getElementById(`fsMapBtn-${type}`);
+                
+                if(btnDs) btnDs.className = "px-2 py-1 rounded text-[var(--text-muted)] transition-all";
+                if(btnFs) btnFs.className = "px-3 py-1.5 rounded text-slate-400 transition-all";
+            });
+
+            const activeDashboardBtn = document.getElementById(`mapBtn-${activeMapStyle}`);
+            if(activeDashboardBtn) activeDashboardBtn.className = "px-2 py-1 rounded bg-cyan-600 text-white transition-all";
+
+            const activeFullScreenBtn = document.getElementById(`fsMapBtn-${activeMapStyle}`);
+            if(activeFullScreenBtn) activeFullScreenBtn.className = "px-3 py-1.5 rounded bg-cyan-600 text-white transition-all";
+        }
+
+        function switchBaseMapLayer(layerType) {
+            activeMapStyle = layerType;
+
+            if(mapInstance && currentMapLayerGroup) {
+                mapInstance.removeLayer(currentMapLayerGroup);
+                currentMapLayerGroup = L.tileLayer(mapTileProviders[layerType], {
+                    attribution: 'Map Data &copy; Esri GIS'
+                }).addTo(mapInstance);
+            }
+
+            if(fsMapInstance && currentFsMapLayerGroup) {
+                fsMapInstance.removeLayer(currentFsMapLayerGroup);
+                currentFsMapLayerGroup = L.tileLayer(mapTileProviders[layerType], {
+                    attribution: 'Map Data &copy; Esri - Way Apu GIS Engine'
+                }).addTo(fsMapInstance);
+            }
+
+            syncMapLayerStyleButtons();
+        }
+
+        function toggleMapWeatherFlip(view) {
+            const flipper = document.getElementById('mapWeatherFlipper');
+            const btnMap = document.getElementById('btnViewMap');
+            const btnWeather = document.getElementById('btnViewWeather');
+
+            if (view === 'weather') {
+                flipper.classList.add('flipped');
+                btnWeather.className = "px-3 py-1.5 rounded bg-amber-600 text-white transition-all shadow-md";
+                btnMap.className = "px-3 py-1.5 rounded text-[var(--text-muted)] transition-all";
+            } else {
+                flipper.classList.remove('flipped');
+                btnMap.className = "px-3 py-1.5 rounded bg-cyan-600 text-white transition-all shadow-md";
+                btnWeather.className = "px-3 py-1.5 rounded text-[var(--text-muted)] transition-all";
+                
+                setTimeout(() => {
+                    if(mapInstance) mapInstance.invalidateSize();
+                }, 300);
+            }
+        }
+
+        function resetProgress() {
+            if(confirm("Apakah Anda yakin ingin mereset seluruh progres kuis / sesi evaluasi? Data pengerjaan akan kembali menjadi nol.")) {
+                localStorage.removeItem("integratedDamProgress_WayApu");
+                location.reload();
+            }
+        }
+
+        function toggleSystemTheme() {
+            const body = document.getElementById("appBody");
+            const icon = document.getElementById("themeIcon");
+            const txt = document.getElementById("themeText");
+            const isDark = body.classList.contains("theme-dark");
+            
+            if(isDark) {
+                body.classList.remove("theme-dark"); 
+                body.classList.add("theme-light");
+                icon.className = "fa-solid fa-moon text-base"; 
+                txt.innerText = "LIGHT MODE";
+            } else {
+                body.classList.remove("theme-light"); 
+                body.classList.add("theme-dark");
+                icon.className = "fa-solid fa-sun text-base"; 
+                txt.innerText = "DARK MODE";
+            }
+            executeLiveRadarUpdate();
+        }
+
+        function initInteractiveMap() {
+            mapInstance = L.map('mapContainer', {
+                zoomControl: true
+            }).setView(exactWayApuCoordinates, 14);
+            
+            currentMapLayerGroup = L.tileLayer(mapTileProviders[activeMapStyle], {
+                attribution: 'Map Data &copy; Esri GIS'
+            }).addTo(mapInstance);
+            
+            syncMapLayerStyleButtons();
+
+            const damMarker = L.marker(exactWayApuCoordinates).addTo(mapInstance);
+            damMarker.bindPopup(`
+                <div class='font-mono text-xs text-slate-800 p-1'>
+                    <b class='text-cyan-600 block mb-1 uppercase'><i class='fa-solid fa-location-crosshairs mr-1'></i> AS BENDUNGAN WAY APU</b>
+                    <span>S: 3°33'14.49\"<br>E: 126°50'23.76\"</span>
+                </div>
+            `).openPopup();
+        }
+
+        function executeLiveRadarUpdate() {
+            const ben = userProgress['stabilitas-bendungan'];
+            const tan = userProgress['mekanika-tanah'];
+            const sof = userProgress['software-geoteknik'];
+            const hid = userProgress['hidrologi'];
+            const ope = userProgress['operasi'];
+            const ews = userProgress['ews'];
+            const geo = userProgress['geologi'];
+            const ins = userProgress['instrumen'];
+
+            const aBen = ben.answered.length > 0 ? Math.round((ben.correctCount/ben.answered.length)*100) : 0;
+            const aTan = tan.answered.length > 0 ? Math.round((tan.correctCount/tan.answered.length)*100) : 0;
+            const aSof = sof.answered.length > 0 ? Math.round((sof.correctCount/sof.answered.length)*100) : 0;
+            const aHid = hid.answered.length > 0 ? Math.round((hid.correctCount/hid.answered.length)*100) : 0;
+            const aOpe = ope.answered.length > 0 ? Math.round((ope.correctCount/ope.answered.length)*100) : 0;
+            const aEws = ews.answered.length > 0 ? Math.round((ews.correctCount/ews.answered.length)*100) : 0;
+            const aGeo = geo.answered.length > 0 ? Math.round((geo.correctCount/geo.answered.length)*100) : 0;
+            const aIns = ins.answered.length > 0 ? Math.round((ins.correctCount/ins.answered.length)*100) : 0;
+
+            let totalAns = 0;
+            Object.keys(userProgress).forEach(c => totalAns += userProgress[c].answered.length);
+            
+            const progNode = document.getElementById("liveProgressTxt");
+            if(progNode) progNode.innerText = `${totalAns} / 80 SOAL`;
+
+            const modalProgNode = document.getElementById("liveModalProgress");
+            if(modalProgNode) modalProgNode.innerText = `Progres: ${totalAns} / 80 Selesai`;
+
+            let sumP = 0, cP = 0;
+            [ben, tan, sof, hid, ope, ews, geo, ins].forEach(c => {
+                if(c.answered.length > 0) { sumP += Math.round((c.correctCount/c.answered.length)*100); cP++; }
+            });
+            let avg = cP > 0 ? Math.round(sumP / cP) : 0;
+
+            const badgeNode = document.getElementById("liveBadgeContainer");
+            if(badgeNode) {
+                if(totalAns === 0) {
+                    badgeNode.className = "p-3 rounded-xl text-center border border-[var(--border-color)] text-[var(--text-muted)] bg-[var(--panel-inner)] text-sm font-tech font-bold uppercase tracking-wider";
+                    badgeNode.innerText = "Belum Ada Data Evaluasi";
+                } else if(avg >= 90) {
+                    badgeNode.className = "p-3 rounded-xl text-center border border-violet-500/50 text-[var(--accent-purple)] bg-[var(--panel-inner)] text-sm font-tech font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(139,92,246,0.3)]";
+                    badgeNode.innerText = "CHIEF EXPERT SPECIALIST";
+                } else if(avg >= 75) {
+                    badgeNode.className = "p-3 rounded-xl text-center border border-amber-500/50 text-[var(--accent-amber)] bg-[var(--panel-inner)] text-sm font-tech font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(245,158,11,0.3)]";
+                    badgeNode.innerText = "SENIOR O&M MANAGER";
+                } else {
+                    badgeNode.className = "p-3 rounded-xl text-center border border-sky-500/50 text-[var(--accent-blue)] bg-[var(--panel-inner)] text-sm font-tech font-bold uppercase tracking-wider";
+                    badgeNode.innerText = "INTERMEDIATE ENGINEER";
+                }
+            }
+
+            try {
+                if(window.Chart) {
+                    const isDark = document.getElementById("appBody").classList.contains("theme-dark");
+                    const radarGridLineColor = isDark ? "rgba(255,255,255,0.15)" : "rgba(15,23,42,0.15)";
+                    const radarLabelTextColor = isDark ? "#cbd5e1" : "#0f172a";
+
+                    const ctxLiveRadar = document.getElementById("liveRadarChart").getContext("2d");
+                    if(liveRadarChartInstance) liveRadarChartInstance.destroy();
+
+                    liveRadarChartInstance = new Chart(ctxLiveRadar, {
+                        type: 'radar',
+                        data: {
+                            labels: ['Dam', 'Soil', 'Soft', 'Hydro', 'POW', 'EWS', 'Geo', 'Inst'],
+                            datasets: [{
+                                data: [aBen, aTan, aSof, aHid, aOpe, aEws, aGeo, aIns],
+                                backgroundColor: 'rgba(6, 182, 212, 0.25)',
+                                borderColor: '#06b6d4',
+                                pointBackgroundColor: '#10b981',
+                                borderWidth: 2, pointRadius: 3
+                            }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: {
+                                r: {
+                                    angleLines: { color: radarGridLineColor },
+                                    grid: { color: radarGridLineColor },
+                                    pointLabels: { color: radarLabelTextColor, font: { size: 10, weight: 'bold' } },
+                                    ticks: { display: false }, min: 0, max: 100
+                                }
+                            },
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Live Radar Chart error dipantau:", err);
+            }
+        }
+
+        function renderAssessmentCards(targetData) {
+            const container = document.getElementById("quizContainer");
+            container.innerHTML = "";
+
+            targetData.forEach(item => {
+                const isAnswered = userProgress[item.category].answered.includes(item.id);
+                let stylingBadge = "text-[var(--accent-blue)] border-sky-500/40 bg-sky-500/10";
+                
+                if(item.category === 'stabilitas-bendungan') stylingBadge = "text-[var(--accent-cyan)] border-cyan-500/40 bg-cyan-500/10";
+                if(item.category === 'mekanika-tanah') stylingBadge = "text-[var(--accent-purple)] border-purple-500/40 bg-purple-500/10";
+                if(item.category === 'software-geoteknik') stylingBadge = "text-[var(--accent-red)] border-rose-500/40 bg-rose-500/10";
+                
+                const cardNode = document.createElement("div");
+                cardNode.className = `quiz-card p-5 lg:p-6 rounded-xl border-2 bg-[var(--bg-card)] flex flex-col justify-between transition-all ${isAnswered ? 'border-emerald-500/50 opacity-90' : 'border-[var(--border-color)] hover:border-[var(--accent-cyan)]'}`;
+                cardNode.title = `Soal Kode ${item.id} - Kategori: ${item.category.replace('-', ' ')}`;
+                
+                cardNode.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xs font-mono font-black border px-2 py-0.5 rounded tracking-wide uppercase ${stylingBadge}">${item.category.replace('-', ' ')}</span>
+                            <span class="text-sm font-mono font-black ${isAnswered ? 'text-[var(--accent-emerald)]' : 'text-[var(--text-muted)]'}">${isAnswered ? '✓ ' : ''}${item.id}</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-[var(--text-main)] font-mono mb-2 line-clamp-1">${item.title}</h3>
+                        <p class="text-base text-[var(--text-muted)] line-clamp-3 font-medium font-sans">${item.question}</p>
+                    </div>
+                    <button onclick="invokeQuizArea('${item.id}')" class="mt-5 w-full py-3 bg-[var(--panel-inner)] border border-[var(--border-color)] text-[var(--accent-cyan)] hover:bg-[var(--accent-cyan)] hover:text-white text-sm font-mono font-black rounded-lg uppercase tracking-wider transition-all shadow-sm">
+                        ${isAnswered ? '<i class="fa-solid fa-eye"></i> Tinjau Teori' : '<i class="fa-solid fa-pen-clip"></i> Mulai Uji'}
+                    </button>
+                `;
+                container.appendChild(cardNode);
+            });
+        }
+
+        function filterSystemCategory(targetCat) {
+            currentCategory = targetCat;
+            const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+            
+            const elementsFiltered = quizDatabase.filter(item => {
+                const matchSearch = item.title.toLowerCase().includes(searchTerm) || item.question.toLowerCase().includes(searchTerm);
+                const matchCat = (currentCategory === "all" || item.category === currentCategory);
+                return matchSearch && matchCat;
+            });
+
+            renderAssessmentCards(elementsFiltered);
+            
+            document.querySelectorAll("#categoryNav button").forEach(btn => {
+                btn.className = "w-full text-left px-3 py-2.5 rounded-lg font-bold text-[var(--text-muted)] hover:bg-[var(--border-color)] flex items-center justify-between transition-colors cursor-pointer";
+            });
+            const activeBtn = document.getElementById(`btn-cat-${targetCat}`);
+            if(activeBtn) activeBtn.className = "w-full text-left px-3 py-2.5 rounded-lg font-bold bg-sky-500 text-white flex items-center justify-between transition-colors cursor-pointer";
+        }
+
+        function refreshProgressCounters() {
+            let runningSum = 0;
+            Object.keys(userProgress).forEach(key => {
+                const segment = userProgress[key];
+                const node = document.getElementById(`prog-${key}`);
+                if(node) node.innerText = `${segment.answered.length}/${segment.total}`;
+                runningSum += segment.answered.length;
+            });
+            const ftl = document.getElementById("floatProgValue");
+            if(ftl) ftl.innerText = `${runningSum} / 80 SELESAI`;
+            
+            const modalProg = document.getElementById("liveModalProgress");
+            if(modalProg) modalProg.innerText = `Progres: ${runningSum} / 80 Selesai`;
+        }
+
+        function invokeQuizArea(id) {
+            const targetObject = quizDatabase.find(q => q.id === id);
+            if(!targetObject) return;
+
+            activeQuizId = id;
+            selectedIndexTrack = -1;
+            
+            document.getElementById("modalQuizTitle").innerText = `${targetObject.id} // ${targetObject.title}`;
+            document.getElementById("modalQuestionText").innerText = targetObject.question;
+            
+            const trayContainer = document.getElementById("dynamicOptions");
+            trayContainer.innerHTML = "";
+            
+            const explanationBlock = document.getElementById("inlineExplanationBox");
+            explanationBlock.innerHTML = "";
+            document.getElementById("quizResultBox").classList.add("hidden");
+
+            const evaluationCompleted = userProgress[targetObject.category].answered.includes(id);
+
+            targetObject.options.forEach((optionText, idx) => {
+                const buttonOption = document.createElement("button");
+                buttonOption.className = `w-full text-left p-4 rounded-xl border-2 text-base font-semibold flex items-center gap-4 transition-all ${evaluationCompleted ? 'bg-[var(--panel-inner)] border-[var(--border-color)] cursor-not-allowed text-[var(--text-main)]' : 'bg-[var(--bg-main)] border-[var(--border-color)] hover:border-sky-500 text-[var(--text-main)]'}`;
+                buttonOption.title = evaluationCompleted ? "Opsi terkunci" : `Pilih opsi ${String.fromCharCode(65 + idx)}`;
+                buttonOption.innerHTML = `<span class="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] font-black px-3 py-1 rounded text-sm">${String.fromCharCode(65 + idx)}</span> <span class="flex-1">${optionText}</span>`;
+                
+                if(!evaluationCompleted) {
+                    buttonOption.onclick = () => {
+                        selectedIndexTrack = idx;
+                        document.querySelectorAll("#dynamicOptions button").forEach(b => b.className = "w-full text-left p-4 rounded-xl border-2 text-base font-semibold flex items-center gap-4 transition-all bg-[var(--bg-main)] border-[var(--border-color)] hover:border-sky-500 text-[var(--text-main)]");
+                        buttonOption.className = "w-full text-left p-4 rounded-xl border-2 text-base font-semibold flex items-center gap-4 transition-all border-[var(--accent-cyan)] bg-[var(--panel-inner)] text-[var(--accent-cyan)] font-bold shadow-[0_0_15px_rgba(6,182,212,0.2)]";
+                    };
+                } else {
+                    if(idx === targetObject.correctIndex) {
+                        buttonOption.classList.add("border-[var(--accent-emerald)]", "bg-emerald-900/10", "text-[var(--accent-emerald)]");
+                    }
+                }
+                trayContainer.appendChild(buttonOption);
+            });
+
+            const actionContainer = document.getElementById("quizActionContainer");
+            if(evaluationCompleted) {
+                actionContainer.classList.add("hidden");
+                displayAssessmentExplanation(targetObject);
+            } else {
+                actionContainer.classList.remove("hidden");
+            }
+
+            document.getElementById("quizModal").classList.remove("hidden");
+        }
+
+        function closeQuizModal() { document.getElementById("quizModal").classList.add("hidden"); }
+
+        function evaluateSelectedOption() {
+            if(selectedIndexTrack === -1) { alert("Silakan tentukan pilihan jawaban Anda!"); return; }
+            
+            const questionObj = quizDatabase.find(q => q.id === activeQuizId);
+            const validationSuccess = (selectedIndexTrack === questionObj.correctIndex);
+            
+            if(!userProgress[questionObj.category].answered.includes(questionObj.id)) {
+                userProgress[questionObj.category].answered.push(questionObj.id);
+                if(validationSuccess) userProgress[questionObj.category].correctCount++;
+                localStorage.setItem("integratedDamProgress_WayApu", JSON.stringify(userProgress));
+            }
+
+            document.getElementById("quizActionContainer").classList.add("hidden");
+            displayAssessmentExplanation(questionObj, validationSuccess);
+            
+            refreshProgressCounters();
+            executeLiveRadarUpdate(); 
+            filterSystemCategory(currentCategory);
+            
+            document.getElementById("chatNotifBadge").classList.remove("hidden");
+            logAiAssessmentResponse(questionObj);
+        }
+
+        function displayAssessmentExplanation(obj, successState = true) {
+            const resultTray = document.getElementById("quizResultBox");
+            const statusOutput = document.getElementById("quizStatusOutput");
+            const explanationBlock = document.getElementById("inlineExplanationBox");
+            
+            resultTray.classList.remove("hidden");
+            if(userProgress[obj.category].answered.includes(obj.id) && arguments.length === 1) {
+                statusOutput.innerHTML = `<span class="text-[var(--text-muted)] uppercase text-base font-bold"><i class="fa-solid fa-lock"></i> Sesi Telah Dikunci (Gunakan Tombol Reset Jika Ingin Mengulang)</span>`;
+            } else {
+                statusOutput.innerHTML = successState ? `<span class="text-[var(--accent-emerald)] font-bold"><i class="fa-solid fa-circle-check"></i> EVALUASI TEPAT (+10 POIN)</span>` : `<span class="text-[var(--accent-red)] font-bold"><i class="fa-solid fa-circle-xmark"></i> FORMULASI DIKOREKSI</span>`;
+            }
+
+            explanationBlock.innerHTML = `
+                <div>
+                    <h4 class="text-[var(--accent-cyan)] font-mono font-black text-sm uppercase mb-1"><i class="fa-solid fa-book"></i> Landasan Teori:</h4>
+                    <p class="text-[var-[--text-main)] font-sans text-base">${obj.explanation}</p>
+                </div>
+                <div class="pt-4 border-t border-[var(--border-color)]">
+                    <h4 class="text-[var(--accent-amber)] font-mono font-black text-sm uppercase mb-1"><i class="fa-solid fa-helmet-safety"></i> Implementasi Lapangan:</h4>
+                    <p class="text-[var(--text-main)] font-sans text-base">${obj.conclusion}</p>
+                </div>
+            `;
+        }
+
+        function toggleSystemChat() {
+            const target = document.getElementById("systemChatBox");
+            target.classList.toggle("hidden");
+            document.getElementById("chatNotifBadge").classList.add("hidden");
+        }
+
+        function openSystemHelp() { document.getElementById("helpSystemModal").classList.remove("hidden"); }
+        function closeSystemHelp() { document.getElementById("helpSystemModal").classList.add("hidden"); }
+
+        function openProgrammerKredit() { document.getElementById("programmerKreditModal").classList.remove("hidden"); }
+        function closeProgrammerKredit() { document.getElementById("programmerKreditModal").classList.add("hidden"); }
+
+        function logAiAssessmentResponse(item) {
+            const messagesContainer = document.getElementById("chatMessagesBox");
+            const structureHtml = `
+                <div class="bg-[var(--bg-card)] p-4 rounded-xl border-l-4 border-[var(--accent-cyan)] text-sm md:text-base text-[var(--text-main)] font-sans leading-relaxed mt-2 shadow-sm">
+                    <span class="text-[var(--accent-cyan)] font-mono font-black block mb-2 uppercase text-xs"><i class="fa-solid fa-robot"></i> Analisis Otomatis [${item.id}]:</span>
+                    <strong>Konsep:</strong> ${item.explanation}<br>
+                    <strong class="text-[var(--accent-amber)]">Rekomendasi Konstruksi:</strong> ${item.conclusion}
+                </div>
+            `;
+            messagesContainer.insertAdjacentHTML("beforeend", structureHtml);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function executeChatInquiry() {
+            const inputField = document.getElementById("chatInputField");
+            const valuePrompt = inputField.value.trim();
+            if(!valuePrompt) return;
+
+            const chatMessagesBox = document.getElementById("chatMessagesBox");
+            chatMessagesBox.insertAdjacentHTML("beforeend", `<div class="text-right"><div class="inline-block bg-cyan-700 text-white font-bold px-4 py-3 rounded-xl text-sm md:text-base text-left max-w-[85%] shadow-md">${valuePrompt}</div></div>`);
+            inputField.value = "";
+            chatMessagesBox.scrollTop = chatMessagesBox.scrollHeight;
+
+            setTimeout(() => {
+                let textBotReply = "";
+                const normalizedPrompt = valuePrompt.toLowerCase();
+
+                if(normalizedPrompt.includes("lugeon") || normalizedPrompt.includes("grouting")) {
+                    textBotReply = `Mengambil data dari repositori geologi... Nilai koefisien kelulusan air fondasi diukur lewat Uji Lugeon bertekanan konstan $1\\text{ Lu} = 1\\text{ L/menit/meter}$ pada tekanan standar $10\\text{ Bar}$. Batasan kritis kelulusan air bendungan urugan tanah adalah $\\le 2\\text{ Lu}$ pasca injeksi grout cap semen.`;
+                } else if(normalizedPrompt.includes("muskingum")) {
+                    textBotReply = `Pencarian internet selesai. Metode routing hidrograf sungai Muskingum didasarkan pada penyimpanan wedge dan prism melalui formulasi penelusuran tangki penyimpanan linier: $S = K[xI + (1-x)O]$.`;
+                } else if(normalizedPrompt.includes("terzaghi") || normalizedPrompt.includes("tegangan efektif")) {
+                    textBotReply = `Teori mekanika tanah Terzaghi menetapkan tegangan efektif $\\sigma' = \\sigma - u$. Ekses tekanan air pori ($u$) yang melonjak saat penimbunan cepat bendungan tanah akan mendegradasi kuat geser material secara drastis.`;
+                } else {
+                    textBotReply = `Query diproses menggunakan algoritma pencarian data... Menanggapi instruksi pengerjaan O&M Bendungan Way Apu, landasan parameter teknis (Kapasitas Total 50,05 Juta m³), peta geografis Leaflet, and modul 80 kompetensi dapat diakses via navigasi antarmuka utama. Ada hal spesifik mengenai pengujian laboratorium atau geoteknik yang ingin Anda bedah lebih dalam?`;
+                }
+
+                const responseStructure = `
+                    <div class="bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] text-sm md:text-base text-[var(--text-main)] leading-relaxed font-sans mt-2 shadow-sm">
+                        <span class="text-[var(--accent-cyan)] font-mono font-black block mb-2 text-xs uppercase"><i class="fa-solid fa-globe mr-1"></i> INTERNET RETRIEVAL MATRIX:</span>
+                        ${textBotReply}
+                    </div>
+                `;
+                chatMessagesBox.insertAdjacentHTML("beforeend", responseStructure);
+                chatMessagesBox.scrollTop = chatMessagesBox.scrollHeight;
+            }, 750);
+        }
+
+        function openReportModal() {
+            document.getElementById("reportModal").classList.remove("hidden");
+            
+            const ben = userProgress['stabilitas-bendungan'];
+            const tan = userProgress['mekanika-tanah'];
+            const sof = userProgress['software-geoteknik'];
+            const hid = userProgress['hidrologi'];
+            const ope = userProgress['operasi'];
+            const ews = userProgress['ews'];
+            const geo = userProgress['geologi'];
+            const ins = userProgress['instrumen'];
+
+            const aBen = ben.answered.length > 0 ? Math.round((ben.correctCount/ben.answered.length)*100) : 0;
+            const aTan = tan.answered.length > 0 ? Math.round((tan.correctCount/tan.answered.length)*100) : 0;
+            const aSof = sof.answered.length > 0 ? Math.round((sof.correctCount/sof.answered.length)*100) : 0;
+            const aHid = hid.answered.length > 0 ? Math.round((hid.correctCount/hid.answered.length)*100) : 0;
+            const aOpe = ope.answered.length > 0 ? Math.round((ope.correctCount/ope.answered.length)*100) : 0;
+            const aEws = ews.answered.length > 0 ? Math.round((ews.correctCount/ews.answered.length)*100) : 0;
+            const aGeo = geo.answered.length > 0 ? Math.round((geo.correctCount/geo.answered.length)*100) : 0;
+            const aIns = ins.answered.length > 0 ? Math.round((ins.correctCount/ins.answered.length)*100) : 0;
+
+            const gridContainer = document.getElementById("matrixScoreGrid");
+            gridContainer.innerHTML = `
+                <div class="bg-[var(--panel-inner)] p-3 rounded-lg border border-[var(--border-color)] flex justify-between" title="Nilai Modul Stabilitas Bendungan"><span>Bendungan</span><span class="font-black text-[var(--accent-cyan)]">${ben.correctCount}/${ben.answered.length} (${aBen}%)</span></div>
+                <div class="bg-[var(--panel-inner)] p-3 rounded-lg border border-[var(--border-color)] flex justify-between" title="Nilai Modul Mekanika Tanah"><span>Mek. Tanah</span><span class="font-black text-[var(--accent-purple)]">${tan.correctCount}/${tan.answered.length} (${aTan}%)</span></div>
+                <div class="bg-[var(--panel-inner)] p-3 rounded-lg border border-[var(--border-color)] flex justify-between" title="Nilai Modul Software Geoteknik"><span>Software</span><span class="font-black text-[var(--accent-red)]">${sof.correctCount}/${sof.answered.length} (${aSof}%)</span></div>
+                <div class="bg-[var(--panel-inner)] p-3 rounded-lg border border-[var(--border-color)] flex justify-between" title="Nilai Modul Hidrologi Hujan-Debit"><span>Hidrologi</span><span class="font-black text-[var(--accent-blue)]">${hid.correctCount}/${hid.answered.length} (${aHid}%)</span></div>
+                <div class="bg-[var(--panel-inner)] p-3 rounded-lg border border-[var(--border-color)] flex justify-between" title="Nilai Modul Operasi POW"><span>Operasi POW</span><span class="font-black text-[var(--accent-teal)]">${ope.correctCount}/${ope.answered.length} (${aOpe}%)</span></div>
+                <div class="bg-[var(--panel-inner)] p-3 rounded-lg border border-[var(--border-color)] flex justify-between" title="Nilai Modul EWS Darurat"><span>EWS Darurat</span><span class="font-black text-[var(--accent-red)]">${ews.correctCount}/${ews.answered.length} (${aEws}%)</span></div>
+                <div class="bg-[var(--panel-inner)] p-3 rounded-lg border border-[var(--border-color)] flex justify-between" title="Nilai Modul Geologi & Grouting"><span>Geologi</span><span class="font-black text-[var(--accent-amber)]">${geo.correctCount}/${geo.answered.length} (${aGeo}%)</span></div>
+                <div class="bg-[var(--panel-inner)] p-3 rounded-lg border border-[var(--border-color)] flex justify-between" title="Nilai Modul Instrumen Geoteknik"><span>Instrumen</span><span class="font-black text-[var(--accent-lime)]">${ins.correctCount}/${ins.answered.length} (${aIns}%)</span></div>
+            `;
+
+            try {
+                if(window.Chart) {
+                    const isDark = document.getElementById("appBody").classList.contains("theme-dark");
+                    const radarGridLineColor = isDark ? "rgba(255,255,255,0.15)" : "rgba(15,23,42,0.15)";
+                    const radarLabelTextColor = isDark ? "#cbd5e1" : "#0f172a";
+
+                    const ctxRadar = document.getElementById("radarChart").getContext("2d");
+                    if(radarChartInstance) radarChartInstance.destroy();
+
+                    radarChartInstance = new Chart(ctxRadar, {
+                        type: 'radar',
+                        data: {
+                            labels: ['Dam', 'Soil Mech', 'Software', 'Hydro', 'POW', 'EWS', 'Geologi', 'Instrumen'],
+                            datasets: [{
+                                label: 'Akurasi Kinerja (%)',
+                                data: [aBen, aTan, aSof, aHid, aOpe, aEws, aGeo, aIns],
+                                backgroundColor: 'rgba(6, 182, 212, 0.25)',
+                                borderColor: 'rgba(6, 182, 212, 1)',
+                                pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                                borderWidth: 3, pointRadius: 4
+                            }]
+                        },
+                        options: {
+                            scales: {
+                                r: {
+                                    angleLines: { color: radarGridLineColor },
+                                    grid: { color: radarGridLineColor },
+                                    pointLabels: { color: radarLabelTextColor, font: { size: 10, weight: 'bold' } },
+                                    ticks: { display: false }, min: 0, max: 100
+                                }
+                            },
+                            plugins: { legend: { display: false } }, maintainAspectRatio: false
+                        }
+                    });
+                }
+            } catch(e) {
+                console.error("Rapor Chart Error: ", e);
+            }
+
+            let totalAnsweredCount = 0;
+            Object.keys(userProgress).forEach(c => totalAnsweredCount += userProgress[c].answered.length);
+            document.getElementById("reportDiagnosis").innerHTML = `Pengguna sistem telah mengunci verifikasi pengerjaan sebanyak <strong class="text-[var(--accent-cyan)] font-mono text-lg">${totalAnsweredCount}</strong> dari total 80 Soal Uji Kompetensi Bendungan.`;
+        }
+
+        function closeReportModal() { document.getElementById("reportModal").classList.add("hidden"); }
+
+        function transmitReportToWA() {
+            let runningSum = 0;
+            let sumP = 0, cP = 0;
+            
+            Object.keys(userProgress).forEach(c => {
+                let answeredCount = userProgress[c].answered.length;
+                runningSum += answeredCount;
+                if(answeredCount > 0) {
+                    sumP += Math.round((userProgress[c].correctCount / answeredCount) * 100);
+                    cP++;
+                }
+            });
+            
+            let avg = cP > 0 ? Math.round(sumP / cP) : 0;
+            
+            let badgeText = "Belum Ada Data";
+            if(runningSum === 0) badgeText = "Belum Ada Data Evaluasi";
+            else if(avg >= 90) badgeText = "CHIEF EXPERT SPECIALIST";
+            else if(avg >= 75) badgeText = "SENIOR O&M MANAGER";
+            else badgeText = "INTERMEDIATE ENGINEER";
+            
+            let messageStr = `*LAPORAN INTEGRASI EVALUASI O&M BENDUNGAN WAY APU*\n\n`;
+            messageStr += `Berikut ringkasan status progres pengerjaan sistem evaluasi:\n`;
+            messageStr += `- Total Modul Dikerjakan: ${runningSum} dari 80 Core Competencies\n`;
+            messageStr += `- Rata-Rata Akurasi Skor: ${avg}%\n`;
+            messageStr += `- Kualifikasi/Jenjang: *${badgeText}*\n`;
+            messageStr += `- Status System Engine: Operasional & Terkalibrasi Aktif\n\n`;
+            messageStr += `Terima kasih atas dedikasi pengembangan infrastruktur ketahanan air nasional.`;
+            
+            window.open(`https://wa.me/6282231036047?text=${encodeURIComponent(messageStr)}`, '_blank');
+        }
+
+        function populateExportContainerData() {
+            const answersBox = document.getElementById("pdfAnswers");
+            answersBox.innerHTML = "";
+            
+            const radarImgSrc = radarChartInstance ? radarChartInstance.toBase64Image() : '';
+            document.getElementById("exportRadarChart").src = radarImgSrc;
+            
+            const badgeText = document.getElementById("liveBadgeContainer").innerText;
+            document.getElementById("exportRankText").innerText = badgeText;
+            
+            document.getElementById("pdfDateStamp").innerText = `Tanggal Sinkronisasi Cetak: ${new Date().toLocaleDateString('id-ID')}`;
+            
+            let counter = 1;
+            let totalHasAnswered = 0;
+            
+            quizDatabase.forEach(item => {
+                if(userProgress[item.category].answered.includes(item.id)) {
+                    totalHasAnswered++;
+                    
+                    const pageBreakClass = (totalHasAnswered % 5 === 0) ? 'html2pdf__page-break' : '';
+                    const pageBreakStyle = (totalHasAnswered % 5 === 0) ? 'page-break-after: always;' : '';
+                    
+                    const structureHtml = `
+                        <div class="${pageBreakClass}" style="border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px; ${pageBreakStyle}">
+                            <h4 style="color:#0369a1; font-weight:bold; font-size:15px; margin-bottom: 4px;">No ${counter}. [${item.id}] ${item.title}</h4>
+                            <p style="font-size:14px; color:#1e293b; margin: 4px 0 8px 0; line-height:1.4;">${item.question}</p>
+                            <div style="background-color:#f0fdf4; padding:10px; border-left:4px solid #10b981; font-size:13px; font-weight:bold; color:#14532d; border-radius:4px;">
+                                Opsi Kunci Tepat: ${item.options[item.correctIndex]}
+                            </div>
+                        </div>
+                    `;
+                    answersBox.insertAdjacentHTML("beforeend", structureHtml);
+                    counter++;
+                }
+            });
+            
+            return totalHasAnswered;
+        }
+
+        function triggerPDFCompilation() {
+            const wrapperNode = document.getElementById("pdfMasterWrapper");
+            const containerNode = document.getElementById("pdfExportContainer");
+            
+            const totalHasAnswered = populateExportContainerData();
+            if(totalHasAnswered === 0) { alert("Anda belum menyelesaikan satu pun soal untuk diekspor ke PDF."); return; }
+
+            wrapperNode.classList.remove("hidden");
+            const settingsOpt = {
+                margin: [10, 10, 10, 10], 
+                filename: `Integrated_WayApu_Report_${new Date().getTime()}.pdf`,
+                image: { type: 'jpeg', quality: 1.0 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            setTimeout(() => {
+                html2pdf().set(settingsOpt).from(containerNode).save().then(() => { wrapperNode.classList.add("hidden"); });
+            }, 600);
+        }
+
+        function triggerWordCompilation() {
+            const totalHasAnswered = populateExportContainerData();
+            if(totalHasAnswered === 0) { alert("Anda belum menyelesaikan satu pun soal untuk diekspor ke Word."); return; }
+            
+            const radarImgSrc = radarChartInstance ? radarChartInstance.toBase64Image() : '';
+            const badgeText = document.getElementById("liveBadgeContainer").innerText;
+            const dateStamp = new Date().toLocaleDateString('id-ID');
+
+            let wordHTML = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head>
+                    <meta charset='utf-8'>
+                    <title>Geoquiz Report Word</title>
+                    <style>
+                        @page WordSection1 {
+                            size: 21cm 29.7cm;
+                            margin: 2cm 2cm 2cm 2cm;
+                            mso-header-margin: 35.4pt;
+                            mso-footer-margin: 35.4pt;
+                            mso-paper-source: 0;
+                        }
+                        div.WordSection1 { page: WordSection1; }
+                        body { font-family: 'Arial', sans-serif; font-size: 11pt; }
+                        h1 { color: #0369a1; text-align: center; font-family: 'Courier New', monospace; font-size: 20pt;}
+                        h3 { text-align: center; color: #64748b; font-size: 11pt; }
+                        .question-block { margin-bottom: 15px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+                        .answer-box { background-color:#f0fdf4; padding:8px; border-left:4px solid #10b981; font-weight:bold; color:#064e3b; }
+                    </style>
+                </head>
+                <body>
+                    <div class="WordSection1">
+                        <h1>GEOQUIZ PERFORMANCE MATRIX REPORT</h1>
+                        <h3>80 Core Competencies Analytics // Way Apu Dam Platform</h3>
+                        <p style="text-align: right; color: #94a3b8; font-size: 9pt;">Tanggal Sinkronisasi Cetak: ${dateStamp}</p>
+                        <hr>
+                        
+                        <div style="text-align: center; margin-bottom: 20px; background-color: #f8fafc; padding: 20px; border: 1px solid #e2e8f0;">
+                            <h2 style="color: #1e293b;">Diagnosis Kinerja AI Real-time</h2>
+                            <h1 style="color: #0369a1; font-size: 18pt; font-weight: bold; letter-spacing: 2px;">${badgeText}</h1>
+                            <br>
+                            ${radarImgSrc ? `<img src="${radarImgSrc}" width="400" height="400" alt="Radar Chart" />` : ''}
+                        </div>
+                        
+                        <br clear="all" style="mso-special-character:line-break;page-break-before:always">
+                        <h3 style="color: #1e293b; text-align: left;">Detail Rekapitulasi Evaluasi:</h3>
+            `;
+            
+            let counter = 1;
+            let exportCount = 0;
+            quizDatabase.forEach(item => {
+                if(userProgress[item.category].answered.includes(item.id)) {
+                    exportCount++;
+                    const pageBreak = (exportCount % 5 === 0) ? '<br clear="all" style="mso-special-character:line-break;page-break-before:always">' : '';
+                    wordHTML += `
+                        <div class="question-block">
+                            <h4 style="color:#0369a1; font-weight: bold; font-size: 12pt;">No ${counter}. [${item.id}] ${item.title}</h4>
+                            <p style="color: #334155; font-size: 11pt;">${item.question}</p>
+                            <p class="answer-box">Opsi Kunci Tepat: ${item.options[item.correctIndex]}</p>
+                        </div>
+                        ${pageBreak}
+                    `;
+                    counter++;
+                }
+            });
+
+            wordHTML += `</div></body></html>`;
+
+            const blob = new Blob(['\ufeff', wordHTML], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Integrated_WayApu_Report_${new Date().getTime()}.doc`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
