@@ -124,9 +124,71 @@
         #fullscreenMapControls:hover {
             transform: translateY(0);
         }
+
+        /* --- ANIMASI SCREENSAVER --- */
+        @keyframes cyber-pulse {
+            0%, 100% { opacity: 0.15; transform: scale(1); }
+            50% { opacity: 0.35; transform: scale(1.05); }
+        }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        @keyframes float-slow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-15px) rotate(0.5deg); }
+        }
+        .sc-grid {
+            background-image: linear-gradient(rgba(6, 182, 212, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(6, 182, 212, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .sc-pulse-ring {
+            animation: cyber-pulse 4s ease-in-out infinite;
+        }
+        .sc-scan {
+            animation: scanline 8s linear infinite;
+        }
+        .sc-float {
+            animation: float-slow 6s ease-in-out infinite;
+        }
     </style>
 </head>
 <body id="appBody" class="theme-dark bg-[var(--bg-main)] text-[var(--text-main)] p-4 md:p-6 min-h-screen flex flex-col justify-between overflow-x-hidden relative">
+
+    <div id="techScreensaver" class="hidden fixed inset-0 z-[200] bg-[#020c1b] flex flex-col items-center justify-center overflow-hidden font-tech transition-all duration-700 opacity-0 select-none">
+        <div class="absolute inset-0 sc-grid opacity-40 pointer-events-none"></div>
+        
+        <div class="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-40 sc-scan pointer-events-none"></div>
+        
+        <div class="absolute w-[600px] h-[600px] rounded-full border-2 border-cyan-500/10 sc-pulse-ring pointer-events-none flex items-center justify-center">
+            <div class="w-[450px] h-[450px] rounded-full border border-indigo-500/20 animate-spin" style="animation-duration: 25s;"></div>
+        </div>
+
+        <div class="z-10 text-center sc-float flex flex-col items-center px-4">
+            <div class="mb-4 flex items-center gap-2 border border-cyan-500/30 px-4 py-1.5 rounded-full bg-cyan-950/40 text-cyan-400 font-mono text-xs tracking-[0.25em] uppercase shadow-[0_0_15px_rgba(6,182,212,0.15)]">
+                <i class="fa-solid fa-satellite-dish animate-pulse"></i> Way Apu Terminal Monitor Mode
+            </div>
+
+            <div id="scLiveTime" class="text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white via-cyan-300 to-cyan-600 tracking-wider filter drop-shadow-[0_0_30px_rgba(6,182,212,0.6)]">
+                00:00:00
+            </div>
+
+            <div class="mt-4 flex items-center gap-4 text-slate-300 font-medium tracking-widest text-lg md:text-2xl border-t border-b border-cyan-500/30 py-2 px-8 bg-slate-900/40 backdrop-blur-sm">
+                <span id="scLiveDate" class="text-transparent bg-clip-text bg-gradient-to-r from-slate-200 to-cyan-200">Kamis, 01 Jan 1970</span>
+                <div class="w-[2px] h-6 bg-cyan-500/50"></div>
+                <span class="text-xs font-mono font-black tracking-widest text-cyan-400 bg-cyan-950/80 px-2.5 py-1 rounded border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]">WITA</span>
+            </div>
+
+            <div class="mt-12 text-slate-500 font-mono text-xs tracking-[0.3em] uppercase animate-pulse flex items-center gap-2">
+                <i class="fa-solid fa-computer-mouse"></i> Gerakkan Mouse / Sentuh Layar Untuk Kembali
+            </div>
+        </div>
+
+        <div class="absolute bottom-6 font-mono text-[10px] tracking-widest text-slate-600 uppercase flex items-center gap-1.5">
+            <span>IDAS Engine v2.6</span>|<span>Secure O&M environment</span>
+        </div>
+    </div>
+
 
     <div id="floatingSystemTimerBadge" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-[#020813]/90 backdrop-blur-md border-2 border-cyan-500 rounded-full px-6 py-2.5 shadow-[0_0_20px_rgba(6,182,212,0.5)] flex items-center gap-4 transition-all">
         <div class="flex items-center gap-2 text-cyan-400 font-mono font-bold tracking-wide text-sm md:text-base">
@@ -156,7 +218,7 @@
     <div id="mainDashboardInterface" class="w-full flex flex-col justify-between flex-1 mt-12">
         <header class="w-full bg-[var(--bg-header)] backdrop-blur-md p-5 rounded-2xl border-2 border-[var(--accent-cyan)] flex flex-col xl:flex-row justify-between items-center gap-4 mb-6 transition-colors">
             <div class="flex items-center gap-4">
-                <div class="p-3 bg-[var(--panel-inner)] rounded-xl border border-[var(--border-color)]" title="Ikon Sistem Analitik Bendungan">
+                <div class="p-3 bg-[var(--panel-inner)] rounded-xl border border border-[var(--border-color)]" title="Ikon Sistem Analitik Bendungan">
                     <i class="fa-solid fa-dam text-[var(--accent-cyan)] text-3xl"></i>
                 </div>
                 <div>
@@ -208,7 +270,7 @@
                         <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Puncak Bendungan:</span><span class="font-bold text-[var(--text-main)] text-right">EL. 101,00 m</span></div>
                         <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Ambang Pelimpah Samping:</span><span class="font-bold text-[var(--text-main)] text-right">EL. 96,50 m</span></div>
                         <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Ambang Pelimpah Berpintu:</span><span class="font-bold text-[var(--text-main)] text-right">EL. 85,00 m</span></div>
-                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text(--accent-purple) shrink-0">Volume Tampungan Mati:</span><span class="font-bold text-[var(--accent-purple)] text-right">13,96 x 10⁶ m³</span></div>
+                        <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-purple-400 shrink-0">Volume Tampungan Mati:</span><span class="font-bold text-[var(--accent-purple)] text-right">13,96 x 10⁶ m³</span></div>
                         <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Muka Air Minimum (LWL):</span><span class="font-bold text-[var(--text-main)] text-right">LWL 79,75 m</span></div>
                         <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-muted)] shrink-0">El. Genangan Normal (NWL):</span><span class="font-bold text-[var(--accent-blue)] text-right">NWL 96,50 m</span></div>
                         <div class="p-2 bg-[var(--panel-inner)] rounded border border-[var(--border-color)] flex justify-between gap-4"><span class="text-[var(--text-main)] shrink-0">Volume Tampungan NWL:</span><span class="font-bold text-[var(--text-main)] text-right">41,756 x 10⁶ m³</span></div>
@@ -423,7 +485,11 @@
         </div>
     </div>
 
-    <div class="fixed bottom-6 right-6 z-[110] flex flex-col items-end pointer-events-none">
+    <div class="fixed bottom-6 right-6 z-[110] flex flex-col items-end gap-3 pointer-events-none">
+        <button onclick="activateScreensaver()" class="pointer-events-auto bg-gradient-to-r from-cyan-900 to-indigo-900 border border-cyan-500/50 text-cyan-400 w-12 h-12 rounded-full shadow-lg flex items-center justify-center cursor-pointer transition-all hover:scale-110" title="Simulasi Pengaktifan Layar Screensaver Sekarang">
+            <i class="fa-solid fa-desktop text-sm"></i>
+        </button>
+
         <button onclick="toggleSystemChat()" class="pointer-events-auto bg-cyan-700 hover:bg-cyan-600 text-white w-14 h-14 rounded-full shadow-[0_10px_30px_rgba(6,182,212,0.5)] border-2 border-[var(--border-color)] flex items-center justify-center cursor-pointer transition-all hover:scale-110 relative" title="Buka Asisten Virtual Geoteknik AI">
             <i id="chatToggleIcon" class="fa-solid fa-robot text-xl"></i>
             <span id="chatNotifBadge" class="hidden absolute top-0 right-0 flex h-3.5 w-3.5">
@@ -600,7 +666,7 @@
             { id: "B7", title: "Pemodelan Pseudo-Statis Seismik", category: "stabilitas-bendungan", question: "Dalam metode Limit Equilibrium Pseudo-Statis, beban gempa direpresentasikan oleh:", options: ["Time-history percepatan", "Koefisien seismik horizontal (kh) dan vertikal (kv)", "Spektrum respons respon", "Kecepatan geser gelombang"], correctIndex: 1, explanation: "Menyederhanakan beban gempa dinamis menjadi gaya inersia konstan menggunakan koefisien kh dan kv.", conclusion: "Gunakan PLAXIS Dinamis untuk analisis rambatan gelombang riil." },
             { id: "B8", title: "Proteksi Rip-Rap Hulu", category: "stabilitas-bendungan", question: "Pemasangan Rip-Rap (susunan batu besar) pada permukaan lereng hulu bertujuan untuk:", options: ["Meningkatkan permeabilitas.", "Mencegah gerusan tanah akibat aksi gelombang permukaan waduk.", "Menurunkan freatik.", "Menambah gaya penahan gempa."], correctIndex: 1, explanation: "Batu besar (Rip-rap) memecah energi gelombang air waduk yang diakibatkan oleh angin.", conclusion: "Dimensi rip-rap dihitung berdasarkan panjang rambatan angin (fetch)." },
             { id: "B9", title: "Kondisi Akhir Konstruksi (End of Construction)", category: "stabilitas-bendungan", question: "Kondisi 'Akhir Konstruksi' sering kritis bagi lereng karena:", options: ["Waduk langsung penuh.", "Batu cangkang retak.", "Tekanan air pori ekses (undrained) dari pemadatan inti lempung belum berdisipasi.", "Beban gempa tertinggi terjadi."], correctIndex: 2, explanation: "Pemadatan alat berat menimbulkan tekanan pori tinggi di inti lempung yang butuh waktu tahunan untuk keluar.", conclusion: "Gunakan parameter kuat geser Undrained (Su) di GeoStudio untuk skenario ini." },
-            { id: "B10", title: "Exit Gradient Hidrolik", category: "stabilitas-bendungan", question: "Erosi buluh (piping) di hilir terjadi jika gradien hidrolik keluar (exit gradient) melampaui:", options: ["Permeabilitas", "Gradien hidrolik kritis (icr)", "Angka pori", "Tegangan in-situ"], correctIndex: 1, explanation: "Saat gaya aliran air ke atas (upward flow) mengalahkan berat jenis tanah, terjadilah 'sand boiling'.", conclusion: "Pancang sheet pile atau pasang relief well untuk menurunkan exit gradient." },
+            { id: "B10", title: "Exit Gradient Hidrolik", category: "stabilitas-bendungan", question: "Erosi buluh (piping) di hilir terjadi jika gradien hidrolik keluar (exit gradient) melampaui:", options: ["Permeabilitas", "Gradien hidrolik kritis (icr)", "Angka pori", "Tegangan in-situ"], correctIndex: 1, explanation: "Gradien keluar hidrolik melampaui nilai kritis memicu sand boiling pondasi.", conclusion: "Pancang sheet pile atau pasang relief well untuk menurunkan exit gradient." },
 
             // KATEGORI 2: MEKANIKA TANAH
             { id: "T1", title: "Prinsip Tegangan Efektif Terzaghi", category: "mekanika-tanah", question: "Rumus Tegangan Efektif (σ') menurut Karl Terzaghi adalah:", options: ["σ + u", "σ - u", "u - σ", "c + σ tan(φ)"], correctIndex: 1, explanation: "Tegangan efektif adalah sisa tekanan fisik antar burir setelah tegangan total dikurangi tekanan air pori (u).", conclusion: "Semua analisis longsor murni dipicu oleh berkurangnya tegangan efektif." },
@@ -653,7 +719,7 @@
             // KATEGORI 6: EARLY WARNING SYSTEM (EWS)
             { id: "E1", title: "Status Kedaruratan WASPADA (Kondisi 1)", category: "ews", question: "Status kedaruratan 'Kondisi I: WASPADA' ditetapkan apabila instrumentasi mendeteksi gejala...", options: ["Bendungan terbelah dua.", "Rembesan di toe drain meningkat tapi air masih tampak jernih.", "Terjadi overtopping 2 meter.", "Listrik kota mati lampu."], correctIndex: 1, explanation: "Rembesan wajar asal jernih. Jika tiba-tiba naik (jernih), ini anomali awal yang perlu observasi 24 jam.", conclusion: "Filter toe drain masih bekerja menahan partikel lempung inti." },
             { id: "E2", title: "Erosi Internal Status SIAGA (Kondisi 2)", category: "ews", question: "Indikasi visual utama yang mengubah status 'WASPADA' memburuk menjadi 'SIAGA' adalah...", options: ["Air surut perlahan.", "Munculnya mata air rembesan (seepage) baru di kaki hilir yang membawa endapan material lumpur pekat (keruh).", "Sensor suhu air panas.", "Burung burung menjauh."], correctIndex: 1, explanation: "Rembesan keruh/berlumpur adalah bukti nyata bahwa erosi buluh internal (piping) telah menggerus lempung inti.", conclusion: "Proses 'Dam Break' telah dimulai di dalam tubuh bendungan secara progresif." },
-            { id: "E3", title: "Komando Evakuasi Lintas Instansi", category: "ews", question: "Tindakan lintas instansi paling penting yang diaktifkan saat memasuki fase 'SIAGA' (Kondisi II) adalah...", options: ["Mencetak ulang buku pedoman.", "Menutup pintu gerbang proyek.", "Memulai komando radio telemetri ke BPBD untuk evakuasi preventif masyarakat di zona Inundasi Merah hilir.", "Berdoa bersama staf."], correctIndex: 2, explanation: "Keselamatan nyawa warga hilir ada dalam hitungan jam. Evakuasi harus dilakukan sebelum bendungan amenuju runtuh.", conclusion: "Integrasi sirine EWS ke posko balai BPBD daerah harus selalu online." },
+            { id: "E3", title: "Komando Evakuasi Lintas Instansi", category: "ews", question: "Tindakan lintas instansi paling penting yang diaktifkan saat memasuki fase 'SIAGA' (Kondisi II) adalah...", options: ["Mencetak ulang buku pedoman.", "Menutup pintu gerbang proyek.", "Memulai komando radio telemetri ke BPBD untuk evakuasi preventif masyarakat di zona Inundasi Merah hilir.", "Berdoa bersama staf."], correctIndex: 2, explanation: "Keselamatan nyawa warga hilir ada dalam hitungan jam. Evakuasi harus dilakukan sebelum bendungan menuju runtuh.", conclusion: "Jalur transmisi data radio nirkabel EWS and BPBD daerah harus selalu online." },
             { id: "E4", title: "Kondisi Batas Kehancuran AWAS (Kondisi 3)", category: "ews", question: "Kondisi pamungkas 'AWAS' (Kondisi III - Gagal Bendungan) resmi dinyatakan jika terjadi...", options: ["Hujan lokal deras 2 jam.", "Pintu spillway berkarat.", "Terjadi peluapan air melewati aspal mercu/puncak (Overtopping) pada bendungan tipe urugan tanah.", "Genset cadangan mati."], correctIndex: 3, explanation: "Air pelimpasan mercu akan menggerus urugan batu hilir dalam hitungan menit, menghancurkan tubuh dam menjadi kepingan lumpur bandang besar.", conclusion: "Segera eksekusi Total Abandon / lari ke perbukitan." },
             { id: "E5", title: "Pola Sinyal Sirine Bahaya Ekstrem", category: "ews", question: "Pola standard bunyi sirine/Toa EWS gawar banjir ketika memasuki status 'AWAS' (Pecah Bendungan) adalah:", options: ["Bunyi 1 kali selama 5 detik lalu diam.", "Bunyi pelan-pelan volume rendah.", "Bunyi nyaring secara KONTINU (terus-menerus tanpa putus) as sbyg sinyal evakuasi mutlak.", "Musik daerah lokal."], correctIndex: 2, explanation: "Suara lolongan tak terputus secara universal menandakan bahaya ekstrem real-time (bukan sekedar latihan).", conclusion: "Warga harus familiar dengan beda nada Siaga (putus-putus) and Awas (kontinu)." },
             { id: "E6", title: "Infrastruktur Transmisi Telemetri", category: "ews", question: "Transmisi pengiriman data ketinggian muka air rawan (EWS) dari bendungan ke pusat BPBD menggunakan infrastructure:", options: ["Ojek/Kurir darat.", "Merpati pos.", "Sistem Radio Telemetri (VHF/UHF) dan Jaringan Seluler GSM (IoT).", "Internet kabel fiber optik rumah."], correctIndex: 2, explanation: "Saat bencana badai, tiang kabel FO darat sering tumbang. Radio Telemetri wireless adalah jalur tulang punggung paling tangguh.", conclusion: "Pastikan baterai / Solar Panel stasiun radio selalu prima." },
@@ -703,6 +769,11 @@
         let systemAlarmInterval = null;
         let systemAlarmEndTime = null;
 
+        // Idle Screensaver Variables
+        let systemIdleTimeCounter = 0;
+        const maxIdleTimeoutLimit = 300; // 5 Menit (5 * 60 detik) konstan idle trigger
+        let isScreensaverActive = false;
+
         let userProgress = {
             'stabilitas-bendungan': { total: 10, answered: [], correctCount: 0 },
             'mekanika-tanah': { total: 10, answered: [], correctCount: 0 },
@@ -746,9 +817,12 @@
             renderAssessmentCards(quizDatabase);
             refreshProgressCounters();
             executeLiveRadarUpdate();
+
+            // INVENTARISASI EVENT LISTENER UNTUK DETEKSI GEJALA IDLE SCREENSAVER
+            setupScreensaverListeners();
         });
 
-        /* --- LOGIKA LIVE SYSTEM TIMER --- */
+        /* --- LOGIKA LIVE SYSTEM TIMER & SCREENSAVER ENGINE --- */
         function startLiveDeviceClock() {
             const daysArr = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
             const monthsArr = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
@@ -762,15 +836,23 @@
                 let monthName = monthsArr[now.getMonth()];
                 let yearStr = now.getFullYear();
                 
-                document.getElementById("liveDeviceDate").innerText = `${dayName}, ${dateStr} ${monthName} ${yearStr}`;
+                let completeDateFormatted = `${dayName}, ${dateStr} ${monthName} ${yearStr}`;
+                document.getElementById("liveDeviceDate").innerText = completeDateFormatted;
                 
                 // Formulasi Waktu Jam:Menit:Detik Berdasarkan Jam Perangkat
                 let hoursStr = String(now.getHours()).padStart(2, '0');
                 let minutesStr = String(now.getMinutes()).padStart(2, '0');
                 let secondsStr = String(now.getSeconds()).padStart(2, '0');
                 
-                document.getElementById("liveDeviceTime").innerText = `${hoursStr}:${minutesStr}:${secondsStr}`;
+                let completeTimeFormatted = `${hoursStr}:${minutesStr}:${secondsStr}`;
+                document.getElementById("liveDeviceTime").innerText = completeTimeFormatted;
                 
+                // Sinkronisasi Data Waktu ke Interface Screensaver Aktif
+                if(isScreensaverActive) {
+                    document.getElementById("scLiveTime").innerText = completeTimeFormatted;
+                    document.getElementById("scLiveDate").innerText = completeDateFormatted;
+                }
+
                 // Pemeriksaan Trigger Alarm Sisa Waktu Aktif
                 if (systemAlarmEndTime) {
                     let timeLeft = systemAlarmEndTime - now.getTime();
@@ -782,9 +864,59 @@
                         document.getElementById("alarmCountdownDisplay").innerText = `SISA WAKTU: ${String(mLeft).padStart(2, '0')}:${String(sLeft).padStart(2, '0')}`;
                     }
                 }
+
+                // Increment Idle Time Tracker tiap satu detik berkelanjutan
+                systemIdleTimeCounter++;
+                if(systemIdleTimeCounter >= maxIdleTimeoutLimit && !isScreensaverActive) {
+                    activateScreensaver();
+                }
             }
             updateClock();
             setInterval(updateClock, 1000);
+        }
+
+        /* --- DETEKSI KONTROL AKSI SCREENSAVER --- */
+        function setupScreensaverListeners() {
+            // Jika ada pergerakan atau pengetikan di layar, reset hitungan idle counter menjadi nol kembali
+            const resetIdleMatrix = () => {
+                systemIdleTimeCounter = 0;
+                if(isScreensaverActive) {
+                    deactivateScreensaver();
+                }
+            };
+
+            window.addEventListener("mousemove", resetIdleMatrix);
+            window.addEventListener("keypress", resetIdleMatrix);
+            window.addEventListener("mousedown", resetIdleMatrix);
+            window.addEventListener("touchstart", resetIdleMatrix);
+            window.addEventListener("scroll", resetIdleMatrix);
+        }
+
+        function activateScreensaver() {
+            if(isScreensaverActive) return;
+            isScreensaverActive = true;
+            
+            const scNode = document.getElementById("techScreensaver");
+            scNode.classList.remove("hidden");
+            // Efek transisi halus fade-in
+            setTimeout(() => {
+                scNode.classList.remove("opacity-0");
+                scNode.classList.add("opacity-100");
+            }, 50);
+        }
+
+        function deactivateScreensaver() {
+            if(!isScreensaverActive) return;
+            isScreensaverActive = false;
+            
+            const scNode = document.getElementById("techScreensaver");
+            scNode.classList.remove("opacity-100");
+            scNode.classList.add("opacity-0");
+            // Sembunyikan div setelah durasi transisi css selesai (700ms)
+            setTimeout(() => {
+                scNode.classList.add("hidden");
+                systemIdleTimeCounter = 0;
+            }, 700);
         }
 
         /* --- MANAJEMEN MODAL DAN KONTROL ALARM --- */
